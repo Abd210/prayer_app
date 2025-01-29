@@ -1296,10 +1296,10 @@ class PrayerTimeService {
 /// ADVANCED UTILS
 /// -----------------------------------------------------------------------------
 
-class AdvancedUtils {
-  /// Qibla direction from Adhan is actual, so we don't use random for final result.
-  /// This method remains if you'd like a random fallback.
-  static double getRandomQiblaDirection() {
-    return math.Random().nextDouble() * 360;
-  }
-}
+// class AdvancedUtils {
+//   /// Qibla direction from Adhan is actual, so we don't use random for final result.
+//   /// This method remains if you'd like a random fallback.
+//   static double getRandomQiblaDirection() {
+//     return math.Random().nextDouble() * 360;
+//   }
+// }
