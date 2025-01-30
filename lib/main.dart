@@ -1,35 +1,37 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui'; // for ImageFilter in frosted glass
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:adhan/adhan.dart';
 import 'package:intl/intl.dart';
 
 /// -----------------------------------------------------------------------------
-/// ADVANCED ISLAMIC APP (main.dart)
+/// ADVANCED ISLAMIC APP (main.dart) - Color-Fixed + Tasbih Feature
 /// -----------------------------------------------------------------------------
 /// USING COLORS: #16423C, #6A9C89, #C4DAD2, #E9EFEC
 ///
 /// Features:
-/// 1. **Splash Screen**:
-///    - Animated wave with brand colors.
+/// 1. **Splash Screen**: Multi-layer wave animation
 /// 2. **Home Page**:
-///    - Location-based Prayer Times in a single advanced card (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha).
-///    - Next Prayer highlight & location display.
-///    - Hijri date (placeholder/approx).
-///    - "Daily Hadith" bottom sheet with random hadith.
+///    - Location-based Prayer Times (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha)
+///    - Next Prayer highlight & location display
+///    - Hijri date (placeholder)
+///    - "Daily Hadith" bottom sheet with random hadith
 /// 3. **Azkar Page**:
-///    - Tab-based categories (Morning, Evening, AfterPrayer, Misc).
-///    - Each azkar can expand to show translation/reference + a recitation counter.
+///    - Tab-based categories (Morning, Evening, AfterPrayer, Misc)
+///    - Each azkar can expand to show translation/reference + a recitation counter
 /// 4. **Qibla Page**:
-///    - Actually calculates the Qibla direction (not random) using `Adhan` Qibla class.
-///    - Rotates a compass icon to point to the Qibla from the user's location.
-/// 5. **Settings Page**:
-///    - Toggle Dark/Light theme.
-///    - Change Calculation Method & Madhab.
-///    - Toggle 24h time format (stub usage).
-/// 6. **No Google Fonts** (System fonts only).
-/// 7. **Single File** (well over 500 lines) with advanced UI and code to "shock" you.
+///    - Actual Qibla direction using Adhan
+///    - Fancy compass + rotating arrow
+/// 5. **Tasbih Page**:
+///    - Simple page to increment a dhikr counter, reset it, etc.
+/// 6. **Settings Page**:
+///    - Toggle Dark/Light theme
+///    - Change Calculation Method & Madhab
+///    - Toggle 24h time format (stub usage)
+/// 7. **No Google Fonts** (System fonts only)
+/// 8. **Single File** with the updated color scheme logic
 ///
 /// DEPENDENCIES (pubspec.yaml):
 /// ```yaml
@@ -115,7 +117,7 @@ class _MyAppState extends State<MyApp> {
         onSurface: kDarkGreen,
       ),
       fontFamily: 'Roboto', // System font
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
         titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         bodyLarge: TextStyle(fontSize: 14),
@@ -143,7 +145,7 @@ class _MyAppState extends State<MyApp> {
         onSurface: Colors.white,
       ),
       fontFamily: 'Roboto', // System font
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
         titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         bodyLarge: TextStyle(fontSize: 14),
@@ -153,7 +155,7 @@ class _MyAppState extends State<MyApp> {
 }
 
 /// -----------------------------------------------------------------------------
-/// SPLASH SCREEN (Animated wave with brand colors)
+/// SPLASH SCREEN (Animated multi-layer wave with brand colors)
 /// -----------------------------------------------------------------------------
 
 class SplashScreen extends StatefulWidget {
@@ -206,8 +208,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final color1 = kDarkGreen;
-    final color2 = kMintGreen;
+    final theme = Theme.of(context);
+    final color1 = theme.colorScheme.primary;
+    final color2 = theme.colorScheme.secondary;
 
     return Scaffold(
       body: Stack(
@@ -222,15 +225,34 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ),
-          // Animated wave at bottom
+          // Multiple wave layers for a "crazy" effect
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedBuilder(
               animation: _waveController,
               builder: (context, child) {
-                return CustomPaint(
-                  painter: WavePainter(_waveController.value, color2),
-                  size: Size(MediaQuery.of(context).size.width, 200),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // First wave
+                    CustomPaint(
+                      painter:
+                          WavePainter(_waveController.value, color2, 20.0, 1.2),
+                      size: Size(MediaQuery.of(context).size.width, 60),
+                    ),
+                    // Second wave
+                    CustomPaint(
+                      painter:
+                          WavePainter(_waveController.value, color2, 30.0, 0.8),
+                      size: Size(MediaQuery.of(context).size.width, 80),
+                    ),
+                    // Third wave
+                    CustomPaint(
+                      painter:
+                          WavePainter(_waveController.value, color2, 40.0, 0.5),
+                      size: Size(MediaQuery.of(context).size.width, 100),
+                    ),
+                  ],
                 );
               },
             ),
@@ -239,17 +261,17 @@ class _SplashScreenState extends State<SplashScreen>
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(
+              children: [
+                const Icon(
                   Icons.auto_awesome,
                   size: 100,
                   color: Colors.white,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
                   'Advanced Islamic App',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: theme.colorScheme.onPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
@@ -267,21 +289,29 @@ class _SplashScreenState extends State<SplashScreen>
 class WavePainter extends CustomPainter {
   final double animationValue;
   final Color color;
+  final double amplitude;
+  final double waveSpeed;
 
-  WavePainter(this.animationValue, this.color);
+  WavePainter(
+    this.animationValue,
+    this.color,
+    this.amplitude,
+    this.waveSpeed,
+  );
 
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path();
-    final amplitude = 20.0;
-    final waveLength = size.width / 1.2;
+    final waveLength = size.width / waveSpeed;
 
     path.moveTo(0, size.height);
     for (double x = 0; x <= size.width; x++) {
       final y = size.height -
-          math.sin((animationValue * 2 * math.pi) + (x / waveLength)) *
+          math.sin(
+                (animationValue * 2 * math.pi) + (x / waveLength),
+              ) *
               amplitude -
-          20;
+          10;
       path.lineTo(x, y);
     }
     path.lineTo(size.width, size.height);
@@ -296,7 +326,7 @@ class WavePainter extends CustomPainter {
 }
 
 /// -----------------------------------------------------------------------------
-/// MAIN SCREEN (Bottom Nav: Home, Azkar, Qibla, Settings)
+/// MAIN SCREEN (Bottom Nav: Home, Azkar, Qibla, Tasbih, Settings)
 /// -----------------------------------------------------------------------------
 
 class MainScreen extends StatefulWidget {
@@ -307,7 +337,7 @@ class MainScreen extends StatefulWidget {
   _MainScreenState createState() => _MainScreenState();
 }
 
-/// Contains 4 pages: Home, Azkar, Qibla, Settings
+/// Contains 5 pages: Home, Azkar, Qibla, Tasbih, Settings
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   late List<Widget> _pages;
@@ -319,6 +349,7 @@ class _MainScreenState extends State<MainScreen> {
       HomePage(),
       AzkarPage(),
       QiblaPage(),
+      TasbihPage(),
       SettingsPage(themeNotifier: widget.themeNotifier),
     ];
   }
@@ -331,26 +362,34 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onItemTapped,
-          selectedItemColor: kDarkGreen,
-          unselectedItemColor: Colors.grey,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Azkar'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore),
-              label: 'Qibla',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-          ],
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: _onItemTapped,
+            selectedItemColor: theme.colorScheme.primary,
+            unselectedItemColor: Colors.grey,
+            showUnselectedLabels: true,
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Azkar'),
+              BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Qibla'),
+              BottomNavigationBarItem(icon: Icon(Icons.fingerprint), label: 'Tasbih'),
+              BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+            ],
+          ),
         ),
       ),
     );
@@ -402,7 +441,8 @@ class _HomePageState extends State<HomePage> {
     _currentPosition = await LocationService.determinePosition();
     if (_currentPosition != null) {
       _prayerTimes = PrayerTimeService.calculatePrayerTimes(_currentPosition!);
-      _currentAddress = await LocationService.getAddressFromPosition(_currentPosition!);
+      _currentAddress =
+          await LocationService.getAddressFromPosition(_currentPosition!);
       setState(() {});
     }
   }
@@ -416,6 +456,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final nextPrayerInfo = PrayerTimeService.getNextPrayerTime(_prayerTimes);
 
     return Scaffold(
@@ -441,19 +482,31 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildGradientBackground() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kLightGreen, kOffWhite],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // If it's dark, let's simply use a solid or darker gradient
+    if (isDark) {
+      return Container(color: theme.scaffoldBackgroundColor);
+    } else {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            colors: [
+              theme.colorScheme.surface.withOpacity(0.7),
+              theme.colorScheme.background
+            ],
+            center: const Alignment(-0.5, -0.6),
+            radius: 1.2,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   /// Header with location, next prayer, and hijri date (placeholder).
   Widget _buildHeader(Map<String, String>? nextPrayerInfo) {
+    final theme = Theme.of(context);
     final hijriDate = _getHijriDate(); // placeholder method
 
     return Container(
@@ -466,13 +519,16 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: kDarkGreen,
+              color: theme.colorScheme.onBackground,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Hijri Date: $hijriDate',
-            style: TextStyle(fontSize: 14, color: Colors.black54),
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onBackground.withOpacity(0.6),
+            ),
           ),
           const SizedBox(height: 10),
           if (nextPrayerInfo != null)
@@ -483,51 +539,68 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: kDarkGreen,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${nextPrayerInfo['name']} at ${nextPrayerInfo['time']}',
-                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: theme.colorScheme.onBackground,
+                  ),
                 ),
               ],
             )
           else
-            const Text(
+            Text(
               'Loading next prayer...',
-              style: TextStyle(fontSize: 16, color: Colors.black54),
+              style: TextStyle(
+                fontSize: 16,
+                color: theme.colorScheme.onBackground.withOpacity(0.6),
+              ),
             ),
         ],
       ),
     );
   }
 
-  /// A single card containing all prayer times in a table-like layout
+  /// A single 'frosted' card containing all prayer times in a table-like layout
   Widget _buildPrayerTimesCard() {
+    final theme = Theme.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Card(
-        color: Colors.white.withOpacity(0.95),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Text(
-                'Today\'s Prayer Times',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: kDarkGreen,
-                ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onBackground.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border:
+                  Border.all(color: theme.colorScheme.onBackground.withOpacity(0.1)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    'Today\'s Prayer Times',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _buildPrayerTimeTable(_prayerTimes!),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: _buildPrayerTimeTable(_prayerTimes!),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -536,7 +609,9 @@ class _HomePageState extends State<HomePage> {
 
   /// Builds a table (or Grid) with all prayer times in a single card.
   Widget _buildPrayerTimeTable(Map<String, String> times) {
+    final theme = Theme.of(context);
     final entries = times.entries.toList(); // Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha
+
     return GridView.builder(
       itemCount: entries.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -550,8 +625,15 @@ class _HomePageState extends State<HomePage> {
         final prayerTime = entries[i].value;
         return Container(
           decoration: BoxDecoration(
-            color: kLightGreen.withOpacity(0.8),
+            color: theme.colorScheme.surface.withOpacity(0.8),
             borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.onBackground.withOpacity(0.1),
+                blurRadius: 6,
+                offset: const Offset(2, 2),
+              ),
+            ],
           ),
           child: Center(
             child: Column(
@@ -561,13 +643,15 @@ class _HomePageState extends State<HomePage> {
                   prayerName,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: kDarkGreen,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   prayerTime,
-                  style: const TextStyle(color: Colors.black87),
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ],
             ),
@@ -579,6 +663,7 @@ class _HomePageState extends State<HomePage> {
 
   /// A floating button that reveals a daily hadith in a bottom sheet.
   Widget _buildDailyHadithButton() {
+    final theme = Theme.of(context);
     return Positioned(
       bottom: 20,
       right: 20,
@@ -586,7 +671,7 @@ class _HomePageState extends State<HomePage> {
         onPressed: _showDailyHadith,
         icon: const Icon(Icons.menu_book),
         label: const Text('Daily Hadith'),
-        backgroundColor: kDarkGreen,
+        backgroundColor: theme.colorScheme.primary,
       ),
     );
   }
@@ -596,6 +681,8 @@ class _HomePageState extends State<HomePage> {
     final random = math.Random();
     final hadith = _hadithList[random.nextInt(_hadithList.length)];
 
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -604,6 +691,10 @@ class _HomePageState extends State<HomePage> {
       builder: (ctx) {
         return Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.background,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -612,14 +703,17 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: kDarkGreen,
+                  color: theme.colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 16),
               Text(
                 hadith,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: theme.colorScheme.onBackground,
+                ),
               ),
               const SizedBox(height: 20),
             ],
@@ -630,12 +724,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Placeholder method: returns a fixed hijri date or a naive approximation.
-  /// (In production, you'd use a dedicated Hijri calendar library.)
   String _getHijriDate() {
-    // Let's do a very naive approach: for demonstration.
-    // You might install a package like `umm_al_qura` or `hijri` for accurate conversion.
     final now = DateTime.now();
-    // Just add a random offset
     final approximateHijriMonth = (now.month + 1) % 12;
     final approximateHijriDay = (now.day + 2) % 30;
     final approximateHijriYear = (now.year - 622) + 1; // rough estimate
@@ -713,20 +803,24 @@ class _AzkarPageState extends State<AzkarPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
         body: NestedScrollView(
           headerSliverBuilder: (ctx, _) => [
             SliverAppBar(
-              title: const Text('Azkar'),
+              title: Text('Azkar', style: TextStyle(color: theme.colorScheme.onPrimary)),
               pinned: true,
               floating: true,
-              backgroundColor: kDarkGreen,
+              backgroundColor: theme.colorScheme.primary,
               bottom: TabBar(
                 controller: _tabController,
                 isScrollable: true,
-                indicatorColor: kOffWhite,
+                indicatorColor: theme.colorScheme.onPrimary,
+                labelColor: theme.colorScheme.onPrimary,
+                unselectedLabelColor: theme.colorScheme.onPrimary.withOpacity(0.7),
                 tabs: const [
                   Tab(text: 'Morning'),
                   Tab(text: 'Evening'),
@@ -739,7 +833,10 @@ class _AzkarPageState extends State<AzkarPage> with TickerProviderStateMixin {
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [kLightGreen, kOffWhite],
+                colors: [
+                  theme.colorScheme.surface,
+                  theme.colorScheme.background
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -811,8 +908,11 @@ class _AzkarCardState extends State<AzkarCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final azkar = widget.azkar;
+
     return Card(
-      color: Colors.white.withOpacity(0.95),
+      color: theme.colorScheme.background.withOpacity(0.95),
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 3,
@@ -828,11 +928,11 @@ class _AzkarCardState extends State<AzkarCard> {
               Align(
                 alignment: Alignment.topRight,
                 child: Text(
-                  widget.azkar.arabic,
+                  azkar.arabic,
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     fontSize: 16,
-                    color: kDarkGreen,
+                    color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -846,16 +946,19 @@ class _AzkarCardState extends State<AzkarCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.azkar.translation,
-                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      azkar.translation,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.colorScheme.onBackground,
+                      ),
                     ),
-                    if (widget.azkar.reference.isNotEmpty) ...[
+                    if (azkar.reference.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        widget.azkar.reference,
+                        azkar.reference,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[700],
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -866,30 +969,34 @@ class _AzkarCardState extends State<AzkarCard> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Count: ${widget.azkar.counter}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          'Count: ${azkar.counter}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onBackground,
+                          ),
                         ),
                         IconButton(
                           onPressed: _incrementCounter,
-                          icon: const Icon(Icons.add_circle),
-                          color: kDarkGreen,
+                          icon: Icon(Icons.add_circle,
+                              color: theme.colorScheme.primary),
                         ),
                       ],
                     ),
                   ],
                 ),
-                crossFadeState: widget.azkar.isExpanded
+                crossFadeState: azkar.isExpanded
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
                 duration: const Duration(milliseconds: 300),
               ),
 
-              /// Icon
+              /// Expand/Collapse Icon
               Align(
                 alignment: Alignment.bottomRight,
                 child: Icon(
-                  widget.azkar.isExpanded ? Icons.expand_less : Icons.expand_more,
-                  color: kDarkGreen,
+                  azkar.isExpanded ? Icons.expand_less : Icons.expand_more,
+                  color: theme.colorScheme.primary,
                 ),
               ),
             ],
@@ -901,7 +1008,7 @@ class _AzkarCardState extends State<AzkarCard> {
 }
 
 /// -----------------------------------------------------------------------------
-/// QIBLA PAGE (Actually calculates Qibla direction from user location)
+/// QIBLA PAGE (Fancy rotating compass + Qibla direction)
 /// -----------------------------------------------------------------------------
 
 class QiblaPage extends StatefulWidget {
@@ -910,18 +1017,17 @@ class QiblaPage extends StatefulWidget {
 }
 
 class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMixin {
-  double _qiblaAngle = 0.0;
+  double _previousAngle = 0.0;
   bool _isLoading = true;
   Position? _currentPosition;
-
   late AnimationController _controller;
   late Animation<double> _rotationAnimation;
-  double _previousAngle = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2));
     _rotationAnimation = Tween<double>(begin: 0, end: 0).animate(_controller);
 
     _calculateQibla();
@@ -946,7 +1052,8 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
     });
 
     // Animate from _previousAngle to 'direction'
-    _rotationAnimation = Tween<double>(begin: _previousAngle, end: direction).animate(
+    _rotationAnimation = Tween<double>(begin: _previousAngle, end: direction)
+        .animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutBack),
     );
     _controller.forward(from: 0.0);
@@ -969,14 +1076,15 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final latLonText = _currentPosition == null
         ? 'Location Unavailable'
         : 'Lat: ${_currentPosition!.latitude}, Lon: ${_currentPosition!.longitude}';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Qibla'),
-        backgroundColor: kDarkGreen,
+        title: Text('Qibla', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.colorScheme.primary,
       ),
       body: Stack(
         children: [
@@ -988,32 +1096,43 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
               child: AnimatedBuilder(
                 animation: _rotationAnimation,
                 builder: (context, child) {
-                  // Convert degrees to radians
-                  final angleInRadians = _rotationAnimation.value * math.pi / 180;
+                  final angleInRadians =
+                      _rotationAnimation.value * math.pi / 180;
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Transform.rotate(
-                        angle: angleInRadians,
-                        child: Icon(
-                          Icons.navigation_rounded,
-                          size: 200,
-                          color: kMintGreen,
+                      SizedBox(
+                        height: 250,
+                        width: 250,
+                        child: CustomPaint(
+                          painter: CompassPainter(),
+                          child: Transform.rotate(
+                            angle: angleInRadians,
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.navigation_rounded,
+                              size: 180,
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Qibla Direction: ${_rotationAnimation.value.toStringAsFixed(2)}°',
+                        'Qibla: ${_rotationAnimation.value.toStringAsFixed(2)}°',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: kDarkGreen,
+                          color: theme.colorScheme.onBackground,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         latLonText,
-                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: theme.colorScheme.onBackground.withOpacity(0.8),
+                        ),
                       ),
                     ],
                   );
@@ -1024,19 +1143,165 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _recalculateQibla,
-        backgroundColor: kDarkGreen,
+        backgroundColor: theme.colorScheme.primary,
         child: const Icon(Icons.refresh),
       ),
     );
   }
 
   Widget _buildBackground() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kLightGreen, kOffWhite],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    if (isDark) {
+      return Container(color: theme.scaffoldBackgroundColor);
+    } else {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            colors: [
+              theme.colorScheme.surface.withOpacity(0.8),
+              theme.colorScheme.background
+            ],
+            radius: 1.2,
+            center: Alignment.center,
+          ),
+        ),
+      );
+    }
+  }
+}
+
+/// A custom painter that draws a circular "compass" background.
+class CompassPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = math.min(size.width, size.height) * 0.5;
+
+    // Outer circle with radial gradient
+    final outerCirclePaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          kDarkGreen.withOpacity(0.8),
+          kMintGreen.withOpacity(0.3),
+          Colors.white.withOpacity(0.1),
+        ],
+        radius: 1.0,
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, outerCirclePaint);
+
+    // Draw radial lines or ticks
+    final tickPaint = Paint()
+      ..color = Colors.white.withOpacity(0.8)
+      ..strokeWidth = 2;
+
+    // 24 ticks
+    for (int i = 0; i < 24; i++) {
+      final tickAngle = (math.pi * 2 / 24) * i;
+      final tickStart = Offset(
+        center.dx + (radius - 15) * math.cos(tickAngle),
+        center.dy + (radius - 15) * math.sin(tickAngle),
+      );
+      final tickEnd = Offset(
+        center.dx + radius * math.cos(tickAngle),
+        center.dy + radius * math.sin(tickAngle),
+      );
+      canvas.drawLine(tickStart, tickEnd, tickPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(CompassPainter oldDelegate) => false;
+}
+
+/// -----------------------------------------------------------------------------
+/// TASBIH PAGE (New Feature)
+/// -----------------------------------------------------------------------------
+
+class TasbihPage extends StatefulWidget {
+  @override
+  _TasbihPageState createState() => _TasbihPageState();
+}
+
+class _TasbihPageState extends State<TasbihPage> {
+  int _count = 0;
+
+  void _incrementCount() {
+    setState(() {
+      _count++;
+    });
+  }
+
+  void _resetCount() {
+    setState(() {
+      _count = 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onBackground = theme.colorScheme.onBackground;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Tasbih', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.colorScheme.primary,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              theme.colorScheme.surface,
+              theme.colorScheme.background,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Tap to Increase Count',
+              style: TextStyle(fontSize: 20, color: onBackground),
+            ),
+            const SizedBox(height: 30),
+            GestureDetector(
+              onTap: _incrementCount,
+              child: Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: theme.colorScheme.primary,
+                    width: 3,
+                  ),
+                ),
+                child: Text(
+                  '$_count',
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: onBackground,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: _resetCount,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reset'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1065,15 +1330,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onBackground = theme.colorScheme.onBackground;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: kDarkGreen,
+        title: Text('Settings', style: TextStyle(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.colorScheme.primary,
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [kLightGreen, kOffWhite],
+            colors: [
+              theme.colorScheme.surface,
+              theme.colorScheme.background,
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -1081,8 +1352,8 @@ class _SettingsPageState extends State<SettingsPage> {
         child: ListView(
           children: [
             SwitchListTile(
-              activeColor: kDarkGreen,
-              title: const Text('Dark Theme'),
+              activeColor: theme.colorScheme.primary,
+              title: Text('Dark Theme', style: TextStyle(color: onBackground)),
               value: widget.themeNotifier.isDarkTheme,
               onChanged: (val) {
                 widget.themeNotifier.toggleTheme();
@@ -1090,21 +1361,26 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             ListTile(
-              title: const Text('Calculation Method'),
+              title: Text('Calculation Method', style: TextStyle(color: onBackground)),
               subtitle: Text(
-                  'Current: ${_prayerSettings.calculationMethod.name.toUpperCase()}'),
-              trailing: const Icon(Icons.arrow_forward_ios),
+                'Current: ${_prayerSettings.calculationMethod.name.toUpperCase()}',
+                style: TextStyle(color: onBackground.withOpacity(0.7)),
+              ),
+              trailing: Icon(Icons.arrow_forward_ios, color: onBackground.withOpacity(0.7)),
               onTap: _showCalculationMethodDialog,
             ),
             ListTile(
-              title: const Text('Madhab'),
-              subtitle: Text(_prayerSettings.madhab.name.toUpperCase()),
-              trailing: const Icon(Icons.arrow_forward_ios),
+              title: Text('Madhab', style: TextStyle(color: onBackground)),
+              subtitle: Text(
+                _prayerSettings.madhab.name.toUpperCase(),
+                style: TextStyle(color: onBackground.withOpacity(0.7)),
+              ),
+              trailing: Icon(Icons.arrow_forward_ios, color: onBackground.withOpacity(0.7)),
               onTap: _showMadhabDialog,
             ),
             SwitchListTile(
-              activeColor: kDarkGreen,
-              title: const Text('Use 24-hour format'),
+              activeColor: theme.colorScheme.primary,
+              title: Text('Use 24-hour format', style: TextStyle(color: onBackground)),
               value: _prayerSettings.use24hFormat,
               onChanged: (val) {
                 setState(() {
@@ -1126,7 +1402,8 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           SimpleDialogOption(
             child: const Text('Muslim World League'),
-            onPressed: () => Navigator.pop(ctx, CalculationMethod.muslim_world_league),
+            onPressed: () =>
+                Navigator.pop(ctx, CalculationMethod.muslim_world_league),
           ),
           SimpleDialogOption(
             child: const Text('Egyptian'),
@@ -1142,7 +1419,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           SimpleDialogOption(
             child: const Text('Moonsighting Committee'),
-            onPressed: () => Navigator.pop(ctx, CalculationMethod.moon_sighting_committee),
+            onPressed: () =>
+                Navigator.pop(ctx, CalculationMethod.moon_sighting_committee),
           ),
           SimpleDialogOption(
             child: const Text('North America (ISNA)'),
@@ -1269,7 +1547,8 @@ class PrayerTimeService {
     final timesMap = <String, DateTime>{};
     prayerTimes.forEach((name, timeStr) {
       final parsedTime = format.parse(timeStr);
-      final dt = DateTime(now.year, now.month, now.day, parsedTime.hour, parsedTime.minute);
+      final dt = DateTime(
+          now.year, now.month, now.day, parsedTime.hour, parsedTime.minute);
       timesMap[name] = dt;
     });
 
@@ -1283,7 +1562,7 @@ class PrayerTimeService {
         'time': format.format(next.value),
       };
     } else {
-      // If no more prayers, show tomorrow's Fajr
+      // If no more prayers today, show tomorrow's Fajr
       return {
         'name': 'Fajr (Tomorrow)',
         'time': prayerTimes['Fajr'] ?? 'N/A',
@@ -1291,15 +1570,3 @@ class PrayerTimeService {
     }
   }
 }
-
-/// -----------------------------------------------------------------------------
-/// ADVANCED UTILS
-/// -----------------------------------------------------------------------------
-
-// class AdvancedUtils {
-//   /// Qibla direction from Adhan is actual, so we don't use random for final result.
-//   /// This method remains if you'd like a random fallback.
-//   static double getRandomQiblaDirection() {
-//     return math.Random().nextDouble() * 360;
-//   }
-// }
