@@ -4,7 +4,7 @@ import 'home_page.dart';
 import 'azkar_page.dart';
 import 'qibla_page.dart';
 import 'tasbih_page.dart';
-import 'settings_page.dart';
+import 'settings_page.dart' as settings;
 
 class MainScreen extends StatefulWidget {
   final ThemeNotifier themeNotifier;
@@ -26,7 +26,7 @@ class _MainScreenState extends State<MainScreen> {
       AzkarPage(),
       const QiblaPage(),
       TasbihPage(),
-      SettingsPage(themeNotifier: widget.themeNotifier),
+      settings.SettingsPage(themeNotifier: widget.themeNotifier),
     ];
   }
 

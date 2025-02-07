@@ -24,6 +24,12 @@ class _HomePageState extends State<HomePage> {
     '“None of you truly believes until he loves for his brother what he loves for himself.” [Bukhari]',
     '“Allah does not look at your appearance or wealth but looks at your hearts and deeds.” [Muslim]',
     '“The best of you are those who learn the Qur’an and teach it.” [Bukhari]',
+    // Additional Hadiths:
+    '“The best of you are those who are best to their families.” [Tirmidhi]',
+    '“The most beloved of deeds to Allah is the most regular and constant even if it were little.” [Bukhari]',
+    '“He is not a believer whose stomach is filled while the neighbor to his side goes hungry.” [Bukhari]',
+    '“The strongest among you is the one who controls his anger.” [Bukhari]',
+    '“Seek knowledge from the cradle to the grave.” [Unknown]',
   ];
 
   @override
@@ -90,7 +96,7 @@ class _HomePageState extends State<HomePage> {
           gradient: RadialGradient(
             colors: [
               theme.colorScheme.surface.withOpacity(0.7),
-              theme.colorScheme.background
+              theme.colorScheme.background,
             ],
             center: const Alignment(-0.5, -0.6),
             radius: 1.2,
@@ -116,7 +122,7 @@ class _HomePageState extends State<HomePage> {
               color: theme.colorScheme.onBackground,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'Hijri Date: $hijriDate',
             style: TextStyle(
@@ -124,7 +130,7 @@ class _HomePageState extends State<HomePage> {
               color: theme.colorScheme.onBackground.withOpacity(0.6),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (nextPrayerInfo != null)
             Column(
               children: [
@@ -136,7 +142,7 @@ class _HomePageState extends State<HomePage> {
                     color: theme.colorScheme.primary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   '${nextPrayerInfo['name']} at ${nextPrayerInfo['time']}',
                   style: TextStyle(
@@ -185,8 +191,9 @@ class _HomePageState extends State<HomePage> {
                       color: theme.colorScheme.primary,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Expanded(child: _buildPrayerTimeTable(_prayerTimes!)),
+                  const SizedBox(height: 20),
+                  // Replace grid view with a column that evenly spaces the prayer rows
+                  Expanded(child: _buildPrayerTimeList(_prayerTimes!)),
                 ],
               ),
             ),
@@ -196,21 +203,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildPrayerTimeTable(Map<String, String> times) {
+  /// Creates a column of prayer time rows that evenly fill the available space.
+  Widget _buildPrayerTimeList(Map<String, String> times) {
     final theme = Theme.of(context);
     final entries = times.entries.toList();
-    return GridView.builder(
-      itemCount: entries.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 2.4,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemBuilder: (ctx, i) {
-        final prayerName = entries[i].key;
-        final prayerTime = entries[i].value;
+    // Get the next prayer info to mark the upcoming prayer.
+    final nextPrayer = PrayerTimeService.getNextPrayerTime(times);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: entries.map((entry) {
+        final isNext = nextPrayer != null && entry.key == nextPrayer['name'];
         return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface.withOpacity(0.8),
             borderRadius: BorderRadius.circular(12),
@@ -222,18 +227,53 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(prayerName, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                const SizedBox(height: 4),
-                Text(prayerTime, style: TextStyle(color: theme.colorScheme.onSurface)),
-              ],
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Prayer name with an icon.
+              Row(
+                children: [
+                  Icon(Icons.access_time, color: theme.colorScheme.onSurface, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    entry.key,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              // Prayer time and badge if this is the next prayer.
+              Row(
+                children: [
+                  Text(
+                    entry.value,
+                    style: TextStyle(color: theme.colorScheme.onSurface),
+                  ),
+                  if (isNext) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Next',
+                        style: TextStyle(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
         );
-      },
+      }).toList(),
     );
   }
 
@@ -257,7 +297,9 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         return Container(
           padding: const EdgeInsets.all(16),
@@ -268,9 +310,23 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Daily Hadith', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+              Text(
+                'Daily Hadith',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
               const SizedBox(height: 16),
-              Text(hadith, textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: theme.colorScheme.onBackground)),
+              Text(
+                hadith,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: theme.colorScheme.onBackground,
+                ),
+              ),
               const SizedBox(height: 20),
             ],
           ),
