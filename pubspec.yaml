@@ -42,6 +42,8 @@ dependencies:
   adhan: ^2.0.0+1
   intl: ^0.18.0
   adhkar: any
+  shared_preferences: ^2.5.1
+  audioplayers: ^6.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
