@@ -1,37 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/theme_notifier.dart';
-import 'screens/splash_screen.dart';
+import 'services/prayer_settings_provider.dart';
+import 'pages/splash_screen.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(MyApp());
+/// Main entry point of the Flutter app.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Optionally load anything else (like SharedPrefs) here if needed.
+
+  runApp(
+    /// We provide both the ThemeNotifier and PrayerSettingsProvider
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+        ChangeNotifierProvider(create: (_) => PrayerSettingsProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
-class MyApp extends StatefulWidget {
-  @override
-  _MyAppState createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  late ThemeNotifier _themeNotifier;
-
-  @override
-  void initState() {
-    super.initState();
-    _themeNotifier = ThemeNotifier();
-  }
+/// Root widget that reads theme and navigates to SplashScreen first.
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _themeNotifier,
-      builder: (context, _) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Advanced Islamic App',
-          theme: _themeNotifier.isDarkTheme ? _themeNotifier.darkTheme : _themeNotifier.lightTheme,
-          home: SplashScreen(themeNotifier: _themeNotifier),
-        );
-      },
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
+
+    return MaterialApp(
+      title: 'Advanced Islamic App',
+      debugShowCheckedModeBanner: false,
+      theme: themeNotifier.lightTheme,
+      darkTheme: themeNotifier.darkTheme,
+      themeMode: themeNotifier.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+      home: const SplashScreen(),
     );
   }
 }

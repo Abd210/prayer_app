@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-// Define brand colors
+/// Example brand colors (customize as needed)
 const Color kDarkGreen = Color(0xFF16423C);
 const Color kMintGreen = Color(0xFF6A9C89);
 const Color kLightGreen = Color(0xFFC4DAD2);
 const Color kOffWhite = Color(0xFFE9EFEC);
 
+/// Notifier that toggles between light and dark themes.
 class ThemeNotifier extends ChangeNotifier {
   bool _isDarkTheme = false;
   bool get isDarkTheme => _isDarkTheme;
@@ -33,11 +34,6 @@ class ThemeNotifier extends ChangeNotifier {
           onSurface: kDarkGreen,
         ),
         fontFamily: 'Roboto',
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          bodyLarge: TextStyle(fontSize: 14),
-        ),
       );
 
   ThemeData get darkTheme => ThemeData(
@@ -58,10 +54,5 @@ class ThemeNotifier extends ChangeNotifier {
           onSurface: Colors.white,
         ),
         fontFamily: 'Roboto',
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          bodyLarge: TextStyle(fontSize: 14),
-        ),
       );
 }

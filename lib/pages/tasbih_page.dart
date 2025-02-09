@@ -1,33 +1,37 @@
 import 'package:flutter/material.dart';
 
 class TasbihPage extends StatefulWidget {
+  const TasbihPage({Key? key}) : super(key: key);
+
   @override
-  _TasbihPageState createState() => _TasbihPageState();
+  State<TasbihPage> createState() => _TasbihPageState();
 }
 
 class _TasbihPageState extends State<TasbihPage> {
   int _count = 0;
-  void _incrementCount() {
+
+  void _increment() {
     setState(() {
       _count++;
     });
   }
-  void _resetCount() {
+
+  void _reset() {
     setState(() {
       _count = 0;
     });
   }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Tasbih', style: TextStyle(color: theme.colorScheme.onPrimary)),
-        backgroundColor: theme.colorScheme.primary,
+        title: const Text('Tasbih'),
       ),
       body: Container(
         width: double.infinity,
-        height: double.infinity,
+        padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [theme.colorScheme.surface, theme.colorScheme.background],
@@ -38,10 +42,13 @@ class _TasbihPageState extends State<TasbihPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Tap to Increase Count', style: TextStyle(fontSize: 20, color: theme.colorScheme.onBackground)),
+            Text(
+              'Tap to Increase Count',
+              style: TextStyle(fontSize: 20, color: theme.colorScheme.onBackground),
+            ),
             const SizedBox(height: 30),
             GestureDetector(
-              onTap: _incrementCount,
+              onTap: _increment,
               child: Container(
                 padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
@@ -64,7 +71,7 @@ class _TasbihPageState extends State<TasbihPage> {
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: _resetCount,
+              onPressed: _reset,
               icon: const Icon(Icons.refresh),
               label: const Text('Reset'),
               style: ElevatedButton.styleFrom(

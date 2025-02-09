@@ -3,19 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:adhan/adhan.dart';
 import '../services/location_service.dart';
-import '../theme/theme_notifier.dart';
 
 class QiblaPage extends StatefulWidget {
   const QiblaPage({Key? key}) : super(key: key);
 
   @override
-  _QiblaPageState createState() => _QiblaPageState();
+  State<QiblaPage> createState() => _QiblaPageState();
 }
 
 class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMixin {
   double _qiblaAngle = 0.0;
   bool _isLoading = true;
   Position? _currentPosition;
+
   late AnimationController _animController;
   late Animation<double> _rotationAnim;
 
@@ -27,39 +27,50 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
     _calculateQibla();
   }
 
-  Future<void> _calculateQibla() async {
-    final position = await LocationService.determinePosition();
-    if (position != null) {
-      final qibla = Qibla(Coordinates(position.latitude, position.longitude));
-      double newAngle = qibla.direction;
-      _rotationAnim = Tween<double>(begin: _qiblaAngle, end: newAngle).animate(
-        CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
-      );
-      _animController.forward(from: 0.0);
-      _qiblaAngle = newAngle;
-      _currentPosition = position;
-    }
-    setState(() { _isLoading = false; });
-  }
-
   @override
   void dispose() {
     _animController.dispose();
     super.dispose();
   }
 
+  Future<void> _calculateQibla() async {
+    final position = await LocationService.determinePosition();
+    if (position != null) {
+      final qibla = Qibla(Coordinates(position.latitude, position.longitude));
+      final newAngle = qibla.direction; // in degrees
+
+      _rotationAnim = Tween<double>(begin: _qiblaAngle, end: newAngle).animate(
+        CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+      );
+      _animController.forward(from: 0);
+
+      setState(() {
+        _qiblaAngle = newAngle;
+        _currentPosition = position;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _refresh() {
+    setState(() => _isLoading = true);
+    _calculateQibla();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Qibla', style: TextStyle(color: theme.colorScheme.onPrimary)),
-        backgroundColor: theme.colorScheme.primary,
+        title: const Text('Qibla Direction'),
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [kMintGreen, kLightGreen],
+            colors: [Colors.greenAccent, Colors.lightGreen],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -78,7 +89,6 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
                           width: 250,
                           child: CustomPaint(
                             painter: QiblaDialPainter(angle: _rotationAnim.value),
-                            child: Center(),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -89,7 +99,7 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
                         const SizedBox(height: 6),
                         Text(
                           _currentPosition == null
-                              ? 'Location Unavailable'
+                              ? 'Location unavailable'
                               : 'Lat: ${_currentPosition!.latitude}, Lon: ${_currentPosition!.longitude}',
                           style: const TextStyle(fontSize: 14, color: Colors.white70),
                         ),
@@ -100,33 +110,31 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _isLoading = true;
-            _calculateQibla();
-          });
-        },
-        backgroundColor: theme.colorScheme.primary,
+        onPressed: _refresh,
         child: const Icon(Icons.refresh),
       ),
     );
   }
 }
 
+/// Custom painter for the Qibla dial
 class QiblaDialPainter extends CustomPainter {
   final double angle;
   QiblaDialPainter({required this.angle});
-  
+
   @override
   void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
+    final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
+
+    // Draw outer circle
     final dialPaint = Paint()
       ..color = Colors.white.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
     canvas.drawCircle(center, radius, dialPaint);
-    // Draw tick marks.
+
+    // Draw tick marks
     final tickPaint = Paint()..color = Colors.white70..strokeWidth = 2;
     for (int i = 0; i < 24; i++) {
       final tickAngle = (2 * math.pi / 24) * i;
@@ -140,18 +148,21 @@ class QiblaDialPainter extends CustomPainter {
       );
       canvas.drawLine(start, end, tickPaint);
     }
-    // Draw red needle.
+
+    // Draw red needle
     final needlePaint = Paint()
       ..color = Colors.redAccent
       ..strokeWidth = 4;
     final needleLength = radius - 20;
-    final needleEnd = Offset(
-      center.dx + needleLength * math.cos(angle * math.pi / 180),
-      center.dy + needleLength * math.sin(angle * math.pi / 180),
+    final radAngle = angle * math.pi / 180.0;
+    final endNeedle = Offset(
+      center.dx + needleLength * math.cos(radAngle),
+      center.dy + needleLength * math.sin(radAngle),
     );
-    canvas.drawLine(center, needleEnd, needlePaint);
+    canvas.drawLine(center, endNeedle, needlePaint);
   }
-  
+
   @override
-  bool shouldRepaint(covariant QiblaDialPainter oldDelegate) => oldDelegate.angle != angle;
+  bool shouldRepaint(covariant QiblaDialPainter oldDelegate) =>
+      oldDelegate.angle != angle;
 }
