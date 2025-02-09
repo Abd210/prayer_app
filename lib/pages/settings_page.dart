@@ -3,12 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:adhan/adhan.dart';
 import '../theme/theme_notifier.dart';
 import '../services/prayer_settings_provider.dart';
-import '../services/user_settings_provider.dart';
 
-/// A more advanced Settings page that:
-///  - Actually reads/writes to SharedPreferences via UserSettingsProvider
-///  - Toggles dark theme, 24-hour format, high-accuracy location, fallback IP
-///  - Lets user optionally enter a Google API key for an extra geocoding fallback
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
 
@@ -16,91 +11,87 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
+/// A more advanced Settings page:
+///  - Dark Theme toggle
+///  - Calculation Method
+///  - Madhab
+///  - 24h Format
+///  - Enable Notifications
+///  - Enable Daily Hadith
+///  - High Accuracy Calculation
+///  - Language Selection, etc.
 class _SettingsPageState extends State<SettingsPage> {
-  @override
-  void initState() {
-    super.initState();
-    // If needed, do initial loads or refresh from the provider
-  }
+  bool enableNotifications = true;
+  bool enableDailyHadith = false;
+  bool highAccuracyCalc = false;
+  String selectedLanguage = 'English';
 
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
     final prayerSettings = Provider.of<PrayerSettingsProvider>(context);
-    final userSettings = Provider.of<UserSettingsProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings - Advanced'),
+        title: const Text('Settings'),
       ),
       body: ListView(
         children: [
-          // Dark Theme
           SwitchListTile(
             title: const Text('Dark Theme'),
             value: themeNotifier.isDarkTheme,
-            onChanged: (val) {
-              themeNotifier.toggleTheme();
-            },
+            onChanged: (val) => themeNotifier.toggleTheme(),
           ),
-
-          // Adhan Calculation Method
           ListTile(
             title: const Text('Calculation Method'),
             subtitle: Text(prayerSettings.calculationMethod.name.toUpperCase()),
             onTap: _showCalculationMethodDialog,
           ),
-
-          // Madhab
           ListTile(
             title: const Text('Madhab'),
             subtitle: Text(prayerSettings.madhab.name.toUpperCase()),
             onTap: _showMadhabDialog,
           ),
-
-          // 24h format
           SwitchListTile(
             title: const Text('Use 24-hour Format'),
             value: prayerSettings.use24hFormat,
             onChanged: (val) => prayerSettings.toggle24hFormat(val),
           ),
-
           const Divider(),
-
-          // High Accuracy location
           SwitchListTile(
-            title: const Text('High Accuracy Location'),
-            subtitle: const Text('Requests fine location, might drain battery more'),
-            value: userSettings.highAccuracyLocation,
-            onChanged: (val) => userSettings.setHighAccuracy(val),
+            title: const Text('Enable Notifications'),
+            value: enableNotifications,
+            onChanged: (val) {
+              setState(() => enableNotifications = val);
+              // Save in SharedPrefs or backend if needed
+            },
           ),
-
-          // Fallback IP
           SwitchListTile(
-            title: const Text('Fallback IP Geolocation'),
-            subtitle: const Text('Try IP-based city if local geocoding fails'),
-            value: userSettings.fallbackIP,
-            onChanged: (val) => userSettings.setFallbackIP(val),
+            title: const Text('Enable Daily Hadith'),
+            value: enableDailyHadith,
+            onChanged: (val) {
+              setState(() => enableDailyHadith = val);
+            },
           ),
-
-          // Google API key
+          SwitchListTile(
+            title: const Text('High Accuracy Calculation'),
+            subtitle: const Text('Adds extra location checks & fine-tuned method'),
+            value: highAccuracyCalc,
+            onChanged: (val) {
+              setState(() => highAccuracyCalc = val);
+              // do any logic if you want
+            },
+          ),
           ListTile(
-            title: const Text('Google Geocoding API Key'),
-            subtitle: Text(
-              userSettings.googleApiKey.isEmpty
-                  ? 'Not Set'
-                  : '****** (Tap to Edit)',
-            ),
-            onTap: _showGoogleApiKeyDialog,
+            title: const Text('Language'),
+            subtitle: Text(selectedLanguage),
+            onTap: _showLanguageDialog,
           ),
-
           const Divider(),
-
-          // About
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('About App'),
-            subtitle: const Text('An advanced Islamic app with many features'),
+            subtitle: const Text('Advanced Islamic App with multiple features'),
             onTap: _showAbout,
           ),
         ],
@@ -165,34 +156,30 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _showGoogleApiKeyDialog() async {
-    final userSettings = Provider.of<UserSettingsProvider>(context, listen: false);
-    final controller = TextEditingController(text: userSettings.googleApiKey);
-
-    final newKey = await showDialog<String>(
+  void _showLanguageDialog() async {
+    final chosenLang = await showDialog<String>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Enter Google Geocoding API Key'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(labelText: 'API Key'),
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Select Language'),
+        children: [
+          SimpleDialogOption(
+            child: const Text('English'),
+            onPressed: () => Navigator.pop(ctx, 'English'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
+          SimpleDialogOption(
+            child: const Text('Arabic'),
+            onPressed: () => Navigator.pop(ctx, 'Arabic'),
+          ),
+          SimpleDialogOption(
+            child: const Text('French'),
+            onPressed: () => Navigator.pop(ctx, 'French'),
+          ),
+        ],
+      ),
     );
-    if (newKey != null) {
-      userSettings.setGoogleApiKey(newKey);
+    if (chosenLang != null) {
+      setState(() => selectedLanguage = chosenLang);
+      // store or apply language logic
     }
   }
 
@@ -200,12 +187,9 @@ class _SettingsPageState extends State<SettingsPage> {
     showAboutDialog(
       context: context,
       applicationName: 'Advanced Islamic App',
-      applicationVersion: '2.5.0',
+      applicationVersion: '2.0.0',
       children: const [
-        Text(
-          'This app provides advanced prayer times, Azkār, Qibla, Tasbih, and more.'
-          'Now with robust settings that actually save via SharedPreferences!',
-        ),
+        Text('This app provides advanced features for prayer times, Azkār, Qibla, Tasbih, and more.'),
       ],
     );
   }

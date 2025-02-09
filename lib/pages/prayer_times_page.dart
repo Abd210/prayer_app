@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:convert';         // for jsonDecode
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // for fallback IP-based geolocation
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -12,12 +10,6 @@ import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
 
-/// An advanced prayer times page with:
-///  - SliverAppBar showing actual city name via geocoding or IP fallback.
-///  - PageView for ±7 days with left-right swiping.
-///  - "Return to Today" button to jump back to current date.
-///  - Fallback method for city name if geocoding fails.
-///  - Extra UI: random tip at bottom, fancy card for next prayer countdown, etc.
 class PrayerTimesPage extends StatefulWidget {
   const PrayerTimesPage({Key? key}) : super(key: key);
 
@@ -25,28 +17,27 @@ class PrayerTimesPage extends StatefulWidget {
   State<PrayerTimesPage> createState() => _PrayerTimesPageState();
 }
 
-class _PrayerTimesPageState extends State<PrayerTimesPage>
-    with SingleTickerProviderStateMixin {
+class _PrayerTimesPageState extends State<PrayerTimesPage> {
   Position? _currentPosition;
-  String _cityName = '...'; // Will update once we get a result
+  String _cityName = '...';
 
-  // For storing day-by-day prayer times in a range from -7..+7
+  // Cache for prayer times for days in the range -7..+7
   final Map<int, PrayerTimes?> _cachedTimes = {};
   final Map<int, SunnahTimes?> _cachedSunnah = {};
   final int _daysRange = 7;
 
-  // The PageView that can swipe between [-7..+7] => total 15 pages
+  // PageView to swipe between days
   late PageController _pageController;
-  final int _pageCenterIndex = 7; // so index=7 => offset=0 (today)
-  int _currentIndex = 7;          // track which page is displayed
+  final int _pageCenterIndex = 7;
+  int _currentIndex = 7;
 
-  // Next Prayer countdown
+  // Next Prayer countdown values
   Timer? _countdownTimer;
   Duration _timeUntilNext = Duration.zero;
   String _nextPrayerName = '-';
   double _prayerProgress = 0.0;
 
-  // For a random tip or hadith at bottom
+  // Random tip data
   final List<String> _tips = [
     '“Establish prayer and give charity.”',
     '“Prayer is better than sleep.”',
@@ -62,78 +53,94 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _pageCenterIndex);
-
     _initLocation();
     _startCountdown();
     _randomTip = _tips[math.Random().nextInt(_tips.length)];
+
+    // Listen for changes in prayer settings to update prayer times.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<PrayerSettingsProvider>(context, listen: false)
+          .addListener(_onPrayerSettingsChanged);
+    });
+  }
+
+  void _onPrayerSettingsChanged() {
+    _cachedTimes.clear();
+    _cachedSunnah.clear();
+    _preloadPrayerTimes();
+    _updateNextPrayer();
   }
 
   @override
   void dispose() {
+    Provider.of<PrayerSettingsProvider>(context, listen: false)
+        .removeListener(_onPrayerSettingsChanged);
     _countdownTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
-  /// Acquire user location, attempt geocoding, fallback to IP-based if needed,
-  /// then preload day-by-day prayer times, and set next prayer info.
+  /// Acquires the user’s location and attempts to determine a city name.
+  /// It checks several fields (locality, subLocality, subAdministrativeArea,
+  /// administrativeArea, country, name) before falling back to coordinates.
   Future<void> _initLocation() async {
     final pos = await LocationService.determinePosition();
     if (pos != null) {
       _currentPosition = pos;
-      // Attempt standard geocoding first
       try {
-        final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+        final placemarks =
+            await placemarkFromCoordinates(pos.latitude, pos.longitude);
         if (placemarks.isNotEmpty) {
-          final pm = placemarks.first;
-          _cityName = pm.locality ?? pm.administrativeArea ?? pm.country ?? 'Unknown';
+          // Try to find a placemark with a non-empty locality.
+          final placemark = placemarks.firstWhere(
+            (p) =>
+                (p.locality != null && p.locality!.isNotEmpty) ||
+                (p.subLocality != null && p.subLocality!.isNotEmpty) ||
+                (p.subAdministrativeArea != null &&
+                    p.subAdministrativeArea!.isNotEmpty) ||
+                (p.administrativeArea != null &&
+                    p.administrativeArea!.isNotEmpty) ||
+                (p.country != null && p.country!.isNotEmpty) ||
+                (p.name != null && p.name!.isNotEmpty),
+            orElse: () => placemarks.first,
+          );
+          // Check multiple fields in order.
+          String city = placemark.locality ??
+              placemark.subLocality ??
+              placemark.subAdministrativeArea ??
+              placemark.administrativeArea ??
+              placemark.country ??
+              placemark.name ??
+              '';
+          // If still empty, fallback to coordinates.
+          if (city.isEmpty) {
+            city =
+                '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
+          }
+          _cityName = city;
         } else {
-          // fallback
-          await _getCityFromIP();
+          _cityName =
+              '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
         }
-      } catch (_) {
-        // fallback
-        await _getCityFromIP();
+      } catch (e) {
+        // Fallback to coordinates if reverse-geocoding fails.
+        _cityName =
+            '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
       }
       setState(() {});
       _preloadPrayerTimes();
       _updateNextPrayer();
     } else {
-      // Could also fallback to IP city if location fails entirely
-      await _getCityFromIP();
+      _cityName = 'Location unavailable';
+      setState(() {});
     }
   }
 
-  /// Fallback method: uses a public IP-based geolocation API
-  /// This is just a basic example. In production, use a secure & reliable service.
-  Future<void> _getCityFromIP() async {
-    try {
-      final url = Uri.parse('https://ip-api.com/json/'); // or another free geolocation API
-      final resp = await http.get(url);
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        final city = data['city'] as String?;
-        final country = data['country'] as String?;
-        if (city != null && city.isNotEmpty) {
-          _cityName = city;
-        } else if (country != null && country.isNotEmpty) {
-          _cityName = country;
-        } else {
-          _cityName = 'Unknown via IP';
-        }
-      } else {
-        _cityName = 'IP API Error';
-      }
-    } catch (e) {
-      _cityName = 'IP Fallback Failed';
-    }
-    setState(() {});
-  }
-
-  /// Precompute PrayerTimes for each day in [-7..+7], calling Adhan for each date
+  /// Precompute PrayerTimes for each day in [-7..+7]
   void _preloadPrayerTimes() {
     if (_currentPosition == null) return;
-    final provider = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final provider =
+        Provider.of<PrayerSettingsProvider>(context, listen: false);
     final now = DateTime.now();
 
     for (int offset = -_daysRange; offset <= _daysRange; offset++) {
@@ -142,15 +149,15 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
 
       final params = provider.calculationMethod.getParameters();
       params.madhab = provider.madhab;
-      // Example adjustments
+      // Example adjustments:
       params.adjustments.fajr = 2;
       params.adjustments.dhuhr = 2;
       params.adjustments.asr = 2;
       params.adjustments.maghrib = 2;
       params.adjustments.isha = 2;
 
-      final coords = Coordinates(_currentPosition!.latitude, _currentPosition!.longitude);
-
+      final coords =
+          Coordinates(_currentPosition!.latitude, _currentPosition!.longitude);
       final pt = PrayerTimes(coords, comps, params);
       final st = SunnahTimes(pt);
 
@@ -160,7 +167,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
     setState(() {});
   }
 
-  /// Timer for updating the next prayer each second
+  /// Starts a periodic timer to update the next prayer countdown.
   void _startCountdown() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -168,8 +175,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
     });
   }
 
-  /// Next prayer is always from "today" offset=0
-  /// if after Isha, we do tomorrow Fajr
+  /// Determines the next prayer time for the current day.
   void _updateNextPrayer() {
     final pt = _cachedTimes[0];
     if (pt == null) {
@@ -193,7 +199,13 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
     String? nextName;
     DateTime? currentPrayerTime;
 
-    for (final prayer in [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha]) {
+    for (final prayer in [
+      Prayer.fajr,
+      Prayer.dhuhr,
+      Prayer.asr,
+      Prayer.maghrib,
+      Prayer.isha
+    ]) {
       final pTime = timesLocal[prayer]!;
       if (now.isBefore(pTime)) {
         nextTime = pTime;
@@ -203,7 +215,6 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
       }
     }
 
-    // if none found, next is tomorrow fajr
     if (nextTime == null) {
       final tomorrowFajr = pt.fajr.add(const Duration(days: 1)).toLocal();
       nextTime = tomorrowFajr;
@@ -222,87 +233,64 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
     });
   }
 
-  DateTime _previousPrayerTime(Prayer prayer, Map<Prayer, DateTime> times) {
+  DateTime _previousPrayerTime(
+      Prayer prayer, Map<Prayer, DateTime> times) {
     if (prayer == Prayer.fajr) {
       return times[Prayer.isha]!;
     }
-    final order = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
+    final order = [
+      Prayer.fajr,
+      Prayer.dhuhr,
+      Prayer.asr,
+      Prayer.maghrib,
+      Prayer.isha
+    ];
     final idx = order.indexOf(prayer);
     return times[order[idx - 1]]!;
   }
 
-  /// Quick helper: convert pageIndex -> dayOffset
   int _offsetFromIndex(int index) => (index - _pageCenterIndex);
-
-  /// Quick helper: convert dayOffset -> pageIndex
   int _indexFromOffset(int offset) => (offset + _pageCenterIndex);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // We’ll use a CustomScrollView with Slivers so we can have a fancy pinned SliverAppBar
-      body: CustomScrollView(
-        slivers: [
-          // SliverAppBar pinned at top showing the city
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 120,
-            flexibleSpace: FlexibleSpaceBar(
-              centerTitle: true,
-              title: Text(_cityName),
+      appBar: AppBar(
+        title: Text(_cityName),
+      ),
+      body: Column(
+        children: [
+          _buildNextPrayerCard(context),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _currentIndex = _pageCenterIndex;
+                });
+                _pageController.jumpToPage(_pageCenterIndex);
+              },
+              icon: const Icon(Icons.today),
+              label: const Text('Return to Today'),
             ),
           ),
-
-          // Next Prayer Card
-          SliverToBoxAdapter(
-            child: _buildNextPrayerCard(context),
-          ),
-
-          // The PageView in a Sliver fill area for swiping day by day
-          SliverFillRemaining(
-            child: Column(
-              children: [
-                // Controls: Return to Today
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _currentIndex = _pageCenterIndex; // jump to today's index
-                        });
-                        _pageController.jumpToPage(_pageCenterIndex);
-                      },
-                      icon: const Icon(Icons.today),
-                      label: const Text('Return to Today'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    scrollDirection: Axis.horizontal,
-                    itemCount: (_daysRange * 2) + 1, // from -7..+7 => 15 total
-                    onPageChanged: (idx) {
-                      setState(() => _currentIndex = idx);
-                    },
-                    itemBuilder: (context, idx) {
-                      final offset = _offsetFromIndex(idx);
-                      return _buildDayView(offset);
-                    },
-                  ),
-                ),
-              ],
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: (_daysRange * 2) + 1,
+              onPageChanged: (idx) {
+                setState(() => _currentIndex = idx);
+              },
+              itemBuilder: (context, idx) {
+                final offset = _offsetFromIndex(idx);
+                return _buildDayView(offset);
+              },
             ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showRandomTip();
-        },
+        onPressed: _showRandomTip,
         child: const Icon(Icons.lightbulb),
       ),
     );
@@ -341,7 +329,10 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
         children: [
           Text(
             'Next Prayer: $_nextPrayerName',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
           ),
           const SizedBox(height: 6),
           Text(
@@ -363,27 +354,30 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
     );
   }
 
-  /// The single-day card for a given offset
   Widget _buildDayView(int offset) {
     final pt = _cachedTimes[offset];
     final st = _cachedSunnah[offset];
     if (pt == null || st == null) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     final date = DateTime.now().add(Duration(days: offset));
     final dateStr = DateFormat('EEEE, MMM d, yyyy').format(date);
 
-    final provider = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final provider =
+        Provider.of<PrayerSettingsProvider>(context, listen: false);
     final format = provider.use24hFormat ? 'HH:mm' : 'hh:mm a';
 
-    return SingleChildScrollView(
+    // Fixed content without additional scrolling.
+    return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             dateStr,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _prayerRow('Fajr', pt.fajr, format, Icons.wb_twighlight),
@@ -393,20 +387,21 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
           _prayerRow('Maghrib', pt.maghrib, format, Icons.nightlight_round),
           _prayerRow('Isha', pt.isha, format, Icons.nightlight),
           const Divider(height: 32),
-          Text('Sunnah Times', style: Theme.of(context).textTheme.titleLarge),
+          Text('Sunnah Times',
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           _prayerRow('Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
           _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format, Icons.mode_night),
           const SizedBox(height: 24),
-          // A random helpful note
-          Text('Tip of the Day:', style: Theme.of(context).textTheme.titleMedium),
+          Text('Tip of the Day:',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
             _randomTip,
-            style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic),
+            style: const TextStyle(
+                fontSize: 15, fontStyle: FontStyle.italic),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 60),
         ],
       ),
     );
@@ -421,14 +416,15 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
         children: [
           Icon(icon, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 8),
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500))),
+          Expanded(
+            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          ),
           Text(display),
         ],
       ),
     );
   }
 
-  /// Called by the FAB to show a new random tip
   void _showRandomTip() {
     setState(() {
       _randomTip = _tips[math.Random().nextInt(_tips.length)];
