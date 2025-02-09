@@ -84,12 +84,26 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: const Text('Select Calculation Method'),
         children: [
-          SimpleDialogOption(child: const Text('Muslim World League'), onPressed: () => Navigator.pop(ctx, CalculationMethod.muslim_world_league)),
-          SimpleDialogOption(child: const Text('Egyptian'), onPressed: () => Navigator.pop(ctx, CalculationMethod.egyptian)),
-          SimpleDialogOption(child: const Text('Karachi'), onPressed: () => Navigator.pop(ctx, CalculationMethod.karachi)),
-          SimpleDialogOption(child: const Text('Umm al-Qura'), onPressed: () => Navigator.pop(ctx, CalculationMethod.umm_al_qura)),
-          SimpleDialogOption(child: const Text('Moonsighting Committee'), onPressed: () => Navigator.pop(ctx, CalculationMethod.moon_sighting_committee)),
-          SimpleDialogOption(child: const Text('North America (ISNA)'), onPressed: () => Navigator.pop(ctx, CalculationMethod.north_america)),
+          SimpleDialogOption(
+              child: const Text('Muslim World League'),
+              onPressed: () =>
+                  Navigator.pop(ctx, CalculationMethod.muslim_world_league)),
+          SimpleDialogOption(
+              child: const Text('Egyptian'),
+              onPressed: () => Navigator.pop(ctx, CalculationMethod.egyptian)),
+          SimpleDialogOption(
+              child: const Text('Karachi'),
+              onPressed: () => Navigator.pop(ctx, CalculationMethod.karachi)),
+          SimpleDialogOption(
+              child: const Text('Umm al-Qura'),
+              onPressed: () => Navigator.pop(ctx, CalculationMethod.umm_al_qura)),
+          SimpleDialogOption(
+              child: const Text('Moonsighting Committee'),
+              onPressed: () =>
+                  Navigator.pop(ctx, CalculationMethod.moon_sighting_committee)),
+          SimpleDialogOption(
+              child: const Text('North America (ISNA)'),
+              onPressed: () => Navigator.pop(ctx, CalculationMethod.north_america)),
         ],
       ),
     );
@@ -106,8 +120,12 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (ctx) => SimpleDialog(
         title: const Text('Select Madhab'),
         children: [
-          SimpleDialogOption(child: const Text('Shafi'), onPressed: () => Navigator.pop(ctx, Madhab.shafi)),
-          SimpleDialogOption(child: const Text('Hanafi'), onPressed: () => Navigator.pop(ctx, Madhab.hanafi)),
+          SimpleDialogOption(
+              child: const Text('Shafi'),
+              onPressed: () => Navigator.pop(ctx, Madhab.shafi)),
+          SimpleDialogOption(
+              child: const Text('Hanafi'),
+              onPressed: () => Navigator.pop(ctx, Madhab.hanafi)),
         ],
       ),
     );
