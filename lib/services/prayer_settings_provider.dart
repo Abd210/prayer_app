@@ -1,6 +1,7 @@
-import 'package:adhan/adhan.dart';
 import 'package:flutter/material.dart';
+import 'package:adhan/adhan.dart';
 
+/// Holds user-selected settings for Prayer calculations.
 class PrayerSettingsProvider extends ChangeNotifier {
   CalculationMethod _calculationMethod = CalculationMethod.karachi;
   Madhab _madhab = Madhab.hanafi;
