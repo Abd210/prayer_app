@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:adhkar/adhkar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/azkar_model.dart';
 import '../widgets/azkar_card.dart';
@@ -27,7 +28,10 @@ class _AzkarPageState extends State<AzkarPage> with TickerProviderStateMixin {
   }
 
   void _loadAzkarData() {
-    // Example data:
+    // Fetch Adhkar data using the Adhkar package
+    List<String> allAdhkarIds = AdhkarFactory.getAllAdhkarId();
+    List<Adhkar> adhkarList = AdhkarFactory.getAdhkar();
+    // Example data loading
     for (int i = 1; i <= 5; i++) {
       morningAzkar.add(
         AzkarModel(
