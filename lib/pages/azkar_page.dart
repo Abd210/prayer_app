@@ -231,5 +231,6 @@ class AzkarSearchDelegate extends SearchDelegate {
       },
     );
   
+  
   }
 }
