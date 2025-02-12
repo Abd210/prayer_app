@@ -173,7 +173,7 @@ class _AzkarPageState extends State<AzkarPage> with TickerProviderStateMixin {
   }
 }
 
-/// Implements search functionality for Azkār.
+/// Implements search functionality for Azkār
 class AzkarSearchDelegate extends SearchDelegate {
   final List<AzkarModel> allAzkar;
 
