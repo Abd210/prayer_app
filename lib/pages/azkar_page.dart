@@ -230,6 +230,5 @@ class AzkarSearchDelegate extends SearchDelegate {
         return AzkarCard(azkar: suggestions[index]);
       },
     );
-  
   }
 }
