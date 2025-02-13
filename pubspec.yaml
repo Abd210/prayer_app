@@ -45,6 +45,7 @@ dependencies:
   shared_preferences: ^2.5.1
   audioplayers: ^6.1.1
   geocoding: ^2.0.0
+  sensors_plus: any
   
 dev_dependencies:
   flutter_test:

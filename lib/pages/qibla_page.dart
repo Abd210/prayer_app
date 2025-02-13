@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:adhan/adhan.dart';
+import 'package:sensors_plus/sensors_plus.dart'; // Add the sensors package
 import '../services/location_service.dart';
 
 class QiblaPage extends StatefulWidget {
@@ -19,12 +20,17 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
   late AnimationController _animController;
   late Animation<double> _rotationAnim;
 
+  double _deviceAngle = 0.0; // Variable to store device angle
+
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
     _rotationAnim = Tween<double>(begin: 0, end: 0).animate(_animController);
     _calculateQibla();
+
+    // Start listening to the compass data
+    _startCompass();
   }
 
   @override
@@ -54,6 +60,22 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
         _isLoading = false;
       });
     }
+  }
+
+  void _startCompass() {
+    // Listen to the magnetometer updates for device orientation
+    magnetometerEvents.listen((event) {
+      double x = event.x;
+      double y = event.y;
+
+      // Calculate the device angle using arctangent
+      double newDeviceAngle = math.atan2(y, x) * 180 / math.pi;
+
+      // Update the angle and rebuild the UI with new data
+      setState(() {
+        _deviceAngle = newDeviceAngle;
+      });
+    });
   }
 
   void _refresh() {
@@ -88,12 +110,14 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
                           height: 250,
                           width: 250,
                           child: CustomPaint(
-                            painter: QiblaDialPainter(angle: _rotationAnim.value),
+                            painter: QiblaDialPainter(
+                              angle: _qiblaAngle - _deviceAngle, // Adjust based on device rotation
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Qibla: ${_rotationAnim.value.toStringAsFixed(2)}°',
+                          'Qibla: ${(_qiblaAngle - _deviceAngle).toStringAsFixed(2)}°',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         const SizedBox(height: 6),
@@ -117,7 +141,6 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
   }
 }
 
-/// Custom painter for the Qibla dial
 class QiblaDialPainter extends CustomPainter {
   final double angle;
   QiblaDialPainter({required this.angle});
@@ -127,14 +150,12 @@ class QiblaDialPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
 
-    // Draw outer circle
     final dialPaint = Paint()
       ..color = Colors.white.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
     canvas.drawCircle(center, radius, dialPaint);
 
-    // Draw tick marks
     final tickPaint = Paint()..color = Colors.white70..strokeWidth = 2;
     for (int i = 0; i < 24; i++) {
       final tickAngle = (2 * math.pi / 24) * i;
@@ -149,7 +170,6 @@ class QiblaDialPainter extends CustomPainter {
       canvas.drawLine(start, end, tickPaint);
     }
 
-    // Draw red needle
     final needlePaint = Paint()
       ..color = Colors.redAccent
       ..strokeWidth = 4;
@@ -163,6 +183,5 @@ class QiblaDialPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant QiblaDialPainter oldDelegate) =>
-      oldDelegate.angle != angle;
+  bool shouldRepaint(covariant QiblaDialPainter oldDelegate) => oldDelegate.angle != angle;
 }
