@@ -46,6 +46,8 @@ dependencies:
   audioplayers: ^6.1.1
   geocoding: ^2.0.0
   sensors_plus: any
+  quran: ^1.0.0
+
   
 dev_dependencies:
   flutter_test:
