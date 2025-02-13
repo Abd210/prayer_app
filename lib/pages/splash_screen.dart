@@ -8,6 +8,7 @@ import 'prayer_times_page.dart';
 import 'qibla_page.dart';
 import 'tasbih_page.dart';
 import 'settings_page.dart';
+import 'QuranPage.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -141,6 +142,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
     QiblaPage(),
     TasbihPage(),
     SettingsPage(),
+    QuranPage(),
   ];
 
   final _labels = const [
@@ -149,6 +151,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
     'Qibla',
     'Tasbih',
     'Settings',
+    'Quran',
   ];
 
   @override
@@ -180,8 +183,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
             case 3:
               icon = Icons.fingerprint; // Tasbih
               break;
+              case 5:
+              icon = Icons.book; // Quran
             default:
               icon = Icons.settings; // Settings
+
               break;
           }
           return BottomNavigationBarItem(
