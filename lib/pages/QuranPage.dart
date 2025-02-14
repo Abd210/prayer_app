@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:quran/quran.dart' as quran;
+import 'dart:math' as math;
 
 class QuranPage extends StatefulWidget {
   const QuranPage({Key? key}) : super(key: key);
@@ -10,13 +11,20 @@ class QuranPage extends StatefulWidget {
 }
 
 class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
-  late List<int> allJuzNumbers;
-  late List<int> allSurahNumbers;
-  late int currentJuz;
-  late int currentSurah;
   late bool isLoading;
   late bool isPlaying;
+  late bool isPlayingWholeSurah;
   late AudioPlayer audioPlayer;
+  late List<int> allJuzNumbers;
+  late List<int> allSurahNumbers;
+  late List<int> surahsInJuz;
+  late int currentJuz;
+  late int currentSurah;
+  late int selectedJuzForSurahs;
+  late int selectedSurahForVerses;
+  late bool showSurahSelection;
+  late bool showVerseSelection;
+  late int verseCountForSurah;
   late String searchQuery;
   late TextEditingController searchController;
   late ScrollController scrollControllerJuz;
@@ -28,28 +36,38 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
   late Animation<double> juzAnimation;
   late Animation<double> surahAnimation;
   late Animation<double> verseAnimation;
-  late bool showSurahSelection;
-  late bool showVerseSelection;
-  late int selectedJuzForSurahs;
-  late int selectedSurahForVerses;
   late int totalSurahCount;
-  late int verseCountForSurah;
-  late List<int> surahsInJuz;
-  late PageController pageController;
-  late int currentPageIndex;
+  late StreamSubscription onCompleteSubscription;
+  late int currentVerseInQueue;
+  late bool entireSurahQueued;
 
   @override
   void initState() {
     super.initState();
+    isLoading = true;
+    isPlaying = false;
+    isPlayingWholeSurah = false;
+    entireSurahQueued = false;
+    audioPlayer = AudioPlayer();
+    onCompleteSubscription = audioPlayer.onPlayerComplete.listen((event) {
+      if (entireSurahQueued && currentVerseInQueue < verseCountForSurah) {
+        currentVerseInQueue++;
+        playAudioQueueVerse();
+      } else {
+        isPlaying = false;
+        isPlayingWholeSurah = false;
+        entireSurahQueued = false;
+        setState(() {});
+      }
+    });
     allJuzNumbers = List.generate(30, (index) => index + 1);
     allSurahNumbers = List.generate(quran.totalSurahCount, (index) => index + 1);
     currentJuz = 1;
     currentSurah = 1;
-    isLoading = true;
-    isPlaying = false;
-    audioPlayer = AudioPlayer();
-    searchQuery = "";
-    searchController = TextEditingController();
+    showSurahSelection = false;
+    showVerseSelection = false;
+    selectedJuzForSurahs = 1;
+    selectedSurahForVerses = 1;
     scrollControllerJuz = ScrollController();
     scrollControllerSurah = ScrollController();
     scrollControllerVerse = ScrollController();
@@ -59,25 +77,21 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     juzAnimation = CurvedAnimation(parent: juzAnimationController, curve: Curves.easeInOut);
     surahAnimation = CurvedAnimation(parent: surahAnimationController, curve: Curves.easeInOut);
     verseAnimation = CurvedAnimation(parent: verseAnimationController, curve: Curves.easeInOut);
-    showSurahSelection = false;
-    showVerseSelection = false;
-    selectedJuzForSurahs = 1;
-    selectedSurahForVerses = 1;
+    searchQuery = "";
+    searchController = TextEditingController();
     totalSurahCount = quran.totalSurahCount;
     verseCountForSurah = quran.getVerseCount(currentSurah);
-    surahsInJuz = [];
-    pageController = PageController();
-    currentPageIndex = 0;
     Future.delayed(const Duration(milliseconds: 300), () {
-      setState(() {
-        isLoading = false;
-      });
+      isLoading = false;
+      setState(() {});
       juzAnimationController.forward();
     });
   }
 
   @override
   void dispose() {
+    onCompleteSubscription.cancel();
+    audioPlayer.dispose();
     scrollControllerJuz.dispose();
     scrollControllerSurah.dispose();
     scrollControllerVerse.dispose();
@@ -85,7 +99,6 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     juzAnimationController.dispose();
     surahAnimationController.dispose();
     verseAnimationController.dispose();
-    audioPlayer.dispose();
     super.dispose();
   }
 
@@ -126,16 +139,35 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
   Future<void> pauseAudio() async {
     await audioPlayer.pause();
     isPlaying = false;
+    isPlayingWholeSurah = false;
     setState(() {});
   }
 
   Future<void> stopAudio() async {
     await audioPlayer.stop();
     isPlaying = false;
+    isPlayingWholeSurah = false;
+    entireSurahQueued = false;
     setState(() {});
   }
 
-  Widget buildJuzList() {
+  void playEntireSurah(int surahNumber) {
+    currentSurah = surahNumber;
+    verseCountForSurah = quran.getVerseCount(surahNumber);
+    currentVerseInQueue = 1;
+    entireSurahQueued = true;
+    isPlayingWholeSurah = true;
+    playAudioQueueVerse();
+  }
+
+  Future<void> playAudioQueueVerse() async {
+    String url = quran.getAudioURLByVerse(currentSurah, currentVerseInQueue);
+    await audioPlayer.play(UrlSource(url));
+    isPlaying = true;
+    setState(() {});
+  }
+
+  Widget buildJuzList(BuildContext context) {
     return FadeTransition(
       opacity: juzAnimation,
       child: ListView.builder(
@@ -151,16 +183,16 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.blueAccent.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blueAccent, width: 1),
+                border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1),
               ),
               child: ListTile(
                 title: Text(
                   'Juz $juzNumber',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),
                 ),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+                trailing: Icon(Icons.arrow_forward_ios_rounded, size: 18, color: Theme.of(context).colorScheme.onBackground),
               ),
             ),
           );
@@ -169,7 +201,7 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildSurahListForJuz() {
+  Widget buildSurahListForJuz(BuildContext context) {
     return FadeTransition(
       opacity: surahAnimation,
       child: Column(
@@ -177,8 +209,11 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.indigo, Colors.blueAccent],
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary.withOpacity(0.9),
+                  Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -187,12 +222,12 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.auto_stories, color: Colors.white, size: 28),
+                Icon(Icons.auto_stories, color: Theme.of(context).colorScheme.onPrimary, size: 28),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Juz $selectedJuzForSurahs Surahs',
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
@@ -203,7 +238,7 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                     juzAnimationController.forward();
                     setState(() {});
                   },
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ],
             ),
@@ -222,20 +257,20 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.purpleAccent.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.purpleAccent, width: 1),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1),
                     ),
                     child: ListTile(
                       title: Text(
                         quran.getSurahName(sNumber),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onBackground),
                       ),
                       subtitle: Text(
                         '${quran.getVerseCount(sNumber)} Verses',
-                        style: const TextStyle(fontSize: 14),
+                        style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onBackground),
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+                      trailing: Icon(Icons.arrow_forward_ios_rounded, size: 18, color: Theme.of(context).colorScheme.onBackground),
                     ),
                   ),
                 );
@@ -247,7 +282,7 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildVerseListForSurah() {
+  Widget buildVerseListForSurah(BuildContext context) {
     return FadeTransition(
       opacity: verseAnimation,
       child: Column(
@@ -255,8 +290,11 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.teal, Colors.tealAccent],
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary.withOpacity(0.9),
+                  Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -265,12 +303,12 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.library_books, color: Colors.white, size: 28),
+                Icon(Icons.library_books, color: Theme.of(context).colorScheme.onPrimary, size: 28),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     quran.getSurahName(selectedSurahForVerses),
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
@@ -280,9 +318,27 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                     surahAnimationController.forward();
                     setState(() {});
                   },
-                  icon: const Icon(Icons.close, color: Colors.white),
+                  icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ],
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Theme.of(context).colorScheme.secondary, width: 1),
+            ),
+            child: ListTile(
+              title: Text(
+                'Play Entire Surah',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground),
+              ),
+              trailing: Icon(Icons.play_arrow_rounded, color: Theme.of(context).colorScheme.onBackground),
+              onTap: () {
+                playEntireSurah(selectedSurahForVerses);
+              },
             ),
           ),
           Expanded(
@@ -296,14 +352,14 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey, width: 0.5),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 0.5),
                   ),
                   child: ListTile(
                     title: Text(
                       '$verseNumber. $verseText',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.onBackground),
                     ),
                     onTap: () {
                       playAudio(selectedSurahForVerses, verseNumber);
@@ -318,11 +374,11 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildAudioPlayerControls() {
+  Widget buildAudioPlayerControls(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -330,6 +386,7 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
         children: [
           IconButton(
             icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+            color: Theme.of(context).colorScheme.onBackground,
             onPressed: () {
               if (isPlaying) {
                 pauseAudio();
@@ -340,6 +397,7 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
           ),
           IconButton(
             icon: const Icon(Icons.stop),
+            color: Theme.of(context).colorScheme.onBackground,
             onPressed: () {
               stopAudio();
             },
@@ -349,12 +407,12 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildMainBody() {
+  Widget buildMainBody(BuildContext context) {
     return Stack(
       children: [
         Positioned.fill(
           child: CustomPaint(
-            painter: QuranBackgroundPainter(),
+            painter: SimpleQuranBackgroundPainter(),
           ),
         ),
         isLoading
@@ -367,9 +425,12 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                     curve: Curves.easeInOut,
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [Colors.blue, Colors.lightBlueAccent],
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary.withOpacity(0.9),
+                          Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -377,19 +438,19 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        const Icon(Icons.menu_book, color: Colors.white, size: 28),
+                        Icon(Icons.menu_book, color: Theme.of(context).colorScheme.onPrimary, size: 28),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Quran',
-                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                         ),
                         IconButton(
                           onPressed: () {
                             showSearch(context: context, delegate: QuranSearchDelegate());
                           },
-                          icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                          icon: Icon(Icons.search, color: Theme.of(context).colorScheme.onPrimary, size: 28),
                         ),
                       ],
                     ),
@@ -398,13 +459,13 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 500),
                       child: !showSurahSelection
-                          ? buildJuzList()
+                          ? buildJuzList(context)
                           : !showVerseSelection
-                              ? buildSurahListForJuz()
-                              : buildVerseListForSurah(),
+                              ? buildSurahListForJuz(context)
+                              : buildVerseListForSurah(context),
                     ),
                   ),
-                  buildAudioPlayerControls(),
+                  buildAudioPlayerControls(context),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -414,46 +475,25 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: buildMainBody());
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
+      body: buildMainBody(context),
+    );
   }
 }
 
-class QuranBackgroundPainter extends CustomPainter {
+class SimpleQuranBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    Paint paint1 = Paint()..color = Colors.blueAccent.withOpacity(0.2);
-    Paint paint2 = Paint()..color = Colors.lightBlueAccent.withOpacity(0.2);
-    Paint paint3 = Paint()..color = Colors.indigo.withOpacity(0.2);
-    Path path1 = Path();
-    path1.moveTo(0, size.height * 0.3);
-    path1.quadraticBezierTo(size.width * 0.25, size.height * 0.35, size.width * 0.5, size.height * 0.3);
-    path1.quadraticBezierTo(size.width * 0.75, size.height * 0.25, size.width, size.height * 0.3);
-    path1.lineTo(size.width, 0);
-    path1.lineTo(0, 0);
-    path1.close();
-    canvas.drawPath(path1, paint1);
-    Path path2 = Path();
-    path2.moveTo(0, size.height);
-    path2.lineTo(0, size.height * 0.7);
-    path2.quadraticBezierTo(size.width * 0.25, size.height * 0.75, size.width * 0.5, size.height * 0.7);
-    path2.quadraticBezierTo(size.width * 0.75, size.height * 0.65, size.width, size.height * 0.7);
-    path2.lineTo(size.width, size.height);
-    path2.close();
-    canvas.drawPath(path2, paint2);
-    Path path3 = Path();
-    path3.moveTo(0, size.height * 0.5);
-    path3.quadraticBezierTo(size.width * 0.25, size.height * 0.55, size.width * 0.5, size.height * 0.5);
-    path3.quadraticBezierTo(size.width * 0.75, size.height * 0.45, size.width, size.height * 0.5);
-    path3.lineTo(size.width, size.height * 0.3);
-    path3.quadraticBezierTo(size.width * 0.75, size.height * 0.35, size.width * 0.5, size.height * 0.4);
-    path3.quadraticBezierTo(size.width * 0.25, size.height * 0.45, 0, size.height * 0.4);
-    path3.close();
-    canvas.drawPath(path3, paint3);
+    Paint paintBg = Paint()..color = Colors.blueGrey.withOpacity(0.03);
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paintBg);
+
+    Paint circlePaint = Paint()..color = Colors.blueGrey.withOpacity(0.08);
+    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.25), 80, circlePaint);
+    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.6), 100, circlePaint);
   }
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class QuranSearchDelegate extends SearchDelegate {
@@ -1114,6 +1154,221 @@ class DummyWidgetTwenty extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentyOne extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentyOne({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.yellowAccent.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentyTwo extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentyTwo({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeIn,
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.lightGreen.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentyThree extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentyThree({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.purpleAccent.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentyFour extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentyFour({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white12,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentyFive extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentyFive({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white24,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentySix extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentySix({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeInOutBack,
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentySeven extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentySeven({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black12,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetTwentyEight extends StatefulWidget {
+  final String text;
+  const DummyWidgetTwentyEight({Key? key, required this.text}) : super(key: key);
+  @override
+  DummyWidgetTwentyEightState createState() => DummyWidgetTwentyEightState();
+}
+
+class DummyWidgetTwentyEightState extends State<DummyWidgetTwentyEight> with SingleTickerProviderStateMixin {
+  late AnimationController controller;
+  late Animation<double> fadeInOut;
+  bool visible = true;
+  @override
+  void initState() {
+    super.initState();
+    controller = AnimationController(duration: const Duration(milliseconds: 500), vsync: this);
+    fadeInOut = Tween<double>(begin: 1, end: 0).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
+  }
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+  void toggle() {
+    if (visible) {
+      controller.forward();
+    } else {
+      controller.reverse();
+    }
+    visible = !visible;
+  }
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: toggle,
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) {
+          return Opacity(
+            opacity: 1 - fadeInOut.value,
+            child: Container(
+              margin: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(widget.text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class DummyWidgetTwentyNine extends StatelessWidget {
+  final String text;
+  const DummyWidgetTwentyNine({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
+    );
+  }
+}
+
+class DummyWidgetThirty extends StatelessWidget {
+  final String text;
+  const DummyWidgetThirty({Key? key, required this.text}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orangeAccent.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 14)),
     );
   }
 }
