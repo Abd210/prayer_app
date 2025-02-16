@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:adhan/adhan.dart';
-import 'package:sensors_plus/sensors_plus.dart'; // Add the sensors package
+import 'package:sensors_plus/sensors_plus.dart';
 import '../services/location_service.dart';
 
 class QiblaPage extends StatefulWidget {
@@ -13,24 +13,34 @@ class QiblaPage extends StatefulWidget {
 }
 
 class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMixin {
+  /// The Qibla angle from North (0-360) using Adhan's calculation.
   double _qiblaAngle = 0.0;
-  bool _isLoading = true;
+
+  /// The device heading (0-360 from North) from the magnetometer.
+  double _deviceAngle = 0.0;
+
+  /// Current location. Null while we haven't got it or error.
   Position? _currentPosition;
 
-  late AnimationController _animController;
-  late Animation<double> _rotationAnim;
+  /// Whether we’re still fetching location/Qibla or not.
+  bool _isLoading = true;
 
-  double _deviceAngle = 0.0; // Variable to store device angle
+  /// For smoothly animating Qibla angle changes if we recalc.
+  late AnimationController _animController;
+  late Animation<double> _qiblaAnim;
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
-    _rotationAnim = Tween<double>(begin: 0, end: 0).animate(_animController);
-    _calculateQibla();
 
-    // Start listening to the compass data
-    _startCompass();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700), // smooth anim
+    );
+    _qiblaAnim = Tween<double>(begin: 0, end: 0).animate(_animController);
+
+    _initQibla();
+    _listenToCompass();
   }
 
   @override
@@ -39,99 +49,91 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  Future<void> _calculateQibla() async {
-    final position = await LocationService.determinePosition();
-    if (position != null) {
-      final qibla = Qibla(Coordinates(position.latitude, position.longitude));
-      final newAngle = qibla.direction; // in degrees
+  /// Recalculate the Qibla based on current location
+  Future<void> _initQibla() async {
+    setState(() => _isLoading = true);
 
-      _rotationAnim = Tween<double>(begin: _qiblaAngle, end: newAngle).animate(
+    final position = await LocationService.determinePosition();
+    if (!mounted) return;
+
+    if (position != null) {
+      final qiblaCalc = Qibla(Coordinates(position.latitude, position.longitude));
+      final newQiblaAngle = qiblaCalc.direction; // 0-360 from North
+
+      // Animate from old angle => new angle
+      _qiblaAnim = Tween<double>(begin: _qiblaAngle, end: newQiblaAngle).animate(
         CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
       );
       _animController.forward(from: 0);
 
       setState(() {
-        _qiblaAngle = newAngle;
+        _qiblaAngle = newQiblaAngle;
         _currentPosition = position;
         _isLoading = false;
       });
     } else {
+      // if location is null
       setState(() {
+        _currentPosition = null;
         _isLoading = false;
       });
     }
   }
 
-  void _startCompass() {
-    // Listen to the magnetometer updates for device orientation
-    magnetometerEvents.listen((event) {
-      double x = event.x;
-      double y = event.y;
+  /// Listen to magnetometer to track phone orientation (device heading).
+  void _listenToCompass() {
+    magnetometerEvents.listen((MagnetometerEvent event) {
+      final double x = event.x;
+      final double y = event.y;
 
-      // Calculate the device angle using arctangent
-      double newDeviceAngle = math.atan2(y, x) * 180 / math.pi;
+      // heading angle from the phone's perspective
+      double headingRadians = math.atan2(y, x);
+      double headingDeg = headingRadians * 180 / math.pi;
+      // convert [-180, 180) to [0, 360)
+      if (headingDeg < 0) headingDeg += 360;
 
-      // Update the angle and rebuild the UI with new data
       setState(() {
-        _deviceAngle = newDeviceAngle;
+        _deviceAngle = headingDeg; 
       });
     });
   }
 
-  void _refresh() {
-    setState(() => _isLoading = true);
-    _calculateQibla();
-  }
+  /// Refresh the Qibla angle
+  void _refresh() => _initQibla();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Qibla Direction'),
-      ),
+      appBar: AppBar(title: const Text('Qibla Direction')),
       body: Container(
+        width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.greenAccent, Colors.lightGreen],
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.05),
+              theme.colorScheme.secondary.withOpacity(0.05),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
-        child: Center(
-          child: _isLoading
-              ? const CircularProgressIndicator()
-              : AnimatedBuilder(
-                  animation: _rotationAnim,
-                  builder: (context, child) {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          height: 250,
-                          width: 250,
-                          child: CustomPaint(
-                            painter: QiblaDialPainter(
-                              angle: _qiblaAngle - _deviceAngle, // Adjust based on device rotation
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Qibla: ${(_qiblaAngle - _deviceAngle).toStringAsFixed(2)}°',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _currentPosition == null
-                              ? 'Location unavailable'
-                              : 'Lat: ${_currentPosition!.latitude}, Lon: ${_currentPosition!.longitude}',
-                          style: const TextStyle(fontSize: 14, color: Colors.white70),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : AnimatedBuilder(
+                animation: _qiblaAnim,
+                builder: (context, child) {
+                  // Qibla angle (0-360) that we animate from old->new
+                  final double qiblaAngleDisplay = _qiblaAnim.value;
+
+                  return _QiblaCompass(
+                    deviceAngle: _deviceAngle,
+                    qiblaAngle: qiblaAngleDisplay,
+                    position: _currentPosition,
+                  );
+                },
+              ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _refresh,
@@ -141,47 +143,231 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
   }
 }
 
-class QiblaDialPainter extends CustomPainter {
-  final double angle;
-  QiblaDialPainter({required this.angle});
+/// A widget that shows a static dial plus two rotating arrows:
+///  - The device heading arrow
+///  - The Qibla arrow (Ka'bah icon)
+class _QiblaCompass extends StatelessWidget {
+  final double deviceAngle;
+  final double qiblaAngle;
+  final Position? position;
+
+  const _QiblaCompass({
+    Key? key,
+    required this.deviceAngle,
+    required this.qiblaAngle,
+    required this.position,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // We'll keep the dial static (N always up).
+    // Each arrow is rotated relative to "N=0".
+    // deviceAngle means the phone is that many degrees from north.
+    // qiblaAngle means Qibla is that many degrees from north.
+
+    // difference between device & qibla
+    double diff = (qiblaAngle - deviceAngle) % 360;
+    if (diff > 180) diff -= 360; // so that -179 < diff <= 180
+    final diffAbs = diff.abs();
+
+    // If user is within 5 deg => highlight Qibla arrow in green
+    final bool isCloseToQibla = diffAbs < 5;
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The dial (static).
+          SizedBox(
+            width: 300,
+            height: 300,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Painted background: circle with cardinal directions
+                CustomPaint(
+                  painter: _CompassDialPainter(theme: theme),
+                  size: const Size(300, 300),
+                ),
+
+                // 1) Device heading arrow
+                _ArrowWidget(
+                  angle: deviceAngle,
+                  length: 120,
+                  color: Colors.blueAccent,
+                  thickness: 4,
+                  icon: Icons.navigation, // or whatever arrow
+                  iconColor: Colors.blueAccent,
+                  label: 'Device',
+                ),
+
+                // 2) Qibla arrow
+                _ArrowWidget(
+                  angle: qiblaAngle,
+                  length: 100,
+                  color: isCloseToQibla ? Colors.green : Colors.redAccent,
+                  thickness: 4,
+                  // Could use a Ka'bah icon or a custom asset if you want
+                  icon: Icons.star, 
+                  iconColor: isCloseToQibla ? Colors.green : Colors.redAccent,
+                  label: 'Qibla',
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          // Info text
+          Text(
+            isCloseToQibla 
+              ? 'You Are Facing Qibla (±5°)!' 
+              : 'Turn to align with Qibla.',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isCloseToQibla 
+                  ? theme.colorScheme.primary 
+                  : theme.colorScheme.onBackground,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            position == null
+                ? 'Location unavailable'
+                : 'Lat: ${position!.latitude.toStringAsFixed(5)}, '
+                  'Lon: ${position!.longitude.toStringAsFixed(5)}',
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onBackground.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A simple arrow widget that rotates from "north=0" by [angle] degrees.
+class _ArrowWidget extends StatelessWidget {
+  final double angle; // 0..360 from north
+  final double length;
+  final double thickness;
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+
+  const _ArrowWidget({
+    Key? key,
+    required this.angle,
+    required this.length,
+    required this.thickness,
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Convert angle in degrees to turns for AnimatedRotation
+    // turns = angleDeg / 360
+    final double turns = angle / 360.0;
+
+    return AnimatedRotation(
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeOut,
+      turns: turns,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // arrow line
+          Container(
+            width: thickness,
+            height: length,
+            color: color.withOpacity(0.7),
+          ),
+          // arrow icon
+          Icon(icon, size: 30, color: iconColor),
+          const SizedBox(height: 4),
+          // optional label below icon
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Paints a static compass dial with cardinal directions at top, right, bottom, left.
+class _CompassDialPainter extends CustomPainter {
+  final ThemeData theme;
+
+  _CompassDialPainter({required this.theme});
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
 
-    final dialPaint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
+    // Outer circle
+    final circlePaint = Paint()
+      ..color = theme.colorScheme.onBackground.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
-    canvas.drawCircle(center, radius, dialPaint);
+    canvas.drawCircle(center, radius - 8, circlePaint);
 
-    final tickPaint = Paint()..color = Colors.white70..strokeWidth = 2;
-    for (int i = 0; i < 24; i++) {
-      final tickAngle = (2 * math.pi / 24) * i;
+    // Ticks (every 15 degrees => 24 ticks)
+    final tickPaint = Paint()
+      ..color = theme.colorScheme.onBackground.withOpacity(0.6)
+      ..strokeWidth = 2;
+    const divisions = 24;
+    for (int i = 0; i < divisions; i++) {
+      final tickAngle = (2 * math.pi / divisions) * i;
       final start = Offset(
-        center.dx + (radius - 10) * math.cos(tickAngle),
-        center.dy + (radius - 10) * math.sin(tickAngle),
+        center.dx + (radius - 18) * math.cos(tickAngle),
+        center.dy + (radius - 18) * math.sin(tickAngle),
       );
       final end = Offset(
-        center.dx + radius * math.cos(tickAngle),
-        center.dy + radius * math.sin(tickAngle),
+        center.dx + (radius - 8) * math.cos(tickAngle),
+        center.dy + (radius - 8) * math.sin(tickAngle),
       );
       canvas.drawLine(start, end, tickPaint);
     }
 
-    final needlePaint = Paint()
-      ..color = Colors.redAccent
-      ..strokeWidth = 4;
-    final needleLength = radius - 20;
-    final radAngle = angle * math.pi / 180.0;
-    final endNeedle = Offset(
-      center.dx + needleLength * math.cos(radAngle),
-      center.dy + needleLength * math.sin(radAngle),
+    // Label cardinal directions: N, E, S, W
+    _drawDirectionLabel(canvas, center, radius, 0, 'N');
+    _drawDirectionLabel(canvas, center, radius, math.pi / 2, 'E');
+    _drawDirectionLabel(canvas, center, radius, math.pi, 'S');
+    _drawDirectionLabel(canvas, center, radius, 3 * math.pi / 2, 'W');
+  }
+
+  void _drawDirectionLabel(Canvas canvas, Offset center, double radius, double angle, String letter) {
+    const textStyle = TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: Colors.deepOrange,
     );
-    canvas.drawLine(center, endNeedle, needlePaint);
+    final textSpan = TextSpan(text: letter, style: textStyle);
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final labelRadius = radius - 40;
+    final dx = center.dx + labelRadius * math.cos(angle) - textPainter.width / 2;
+    final dy = center.dy + labelRadius * math.sin(angle) - textPainter.height / 2;
+    textPainter.paint(canvas, Offset(dx, dy));
   }
 
   @override
-  bool shouldRepaint(covariant QiblaDialPainter oldDelegate) => oldDelegate.angle != angle;
+  bool shouldRepaint(_CompassDialPainter oldDelegate) => false;
 }
