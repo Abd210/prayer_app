@@ -1,11 +1,114 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:confetti/confetti.dart';
+
+// Example: your data imports
 import 'package:prayer/models/azakdata.dart';
 
-// NEW IMPORT: we bring in DhikrItem and all the adhkar data from azakdata.dart
+///
+/// ──────────────────────────────────────────────────────────────────────────────
+///  0) Wave Background (Green Themed)
+/// ──────────────────────────────────────────────────────────────────────────────
+///
+/// This widget animates one or more "waves" across the screen using
+/// a custom painter. The wave is tinted green to match your theming.
+///
+class AnimatedWaveBackground extends StatefulWidget {
+  final Widget child;
 
+  const AnimatedWaveBackground({Key? key, required this.child})
+      : super(key: key);
+
+  @override
+  _AnimatedWaveBackgroundState createState() => _AnimatedWaveBackgroundState();
+}
+
+class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    // This controller will run indefinitely and rebuild the painter every frame
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat(); // loop forever
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _waveController,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _GreenWavePainter(_waveController.value),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _GreenWavePainter extends CustomPainter {
+  final double waveValue;
+  _GreenWavePainter(this.waveValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.greenAccent.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    // We will draw 2 or 3 waves at different phases or amplitudes
+    _drawWave(canvas, size, paint, amplitude: 20, speed: 1.0, yOffset: 0);
+    _drawWave(canvas, size, paint, amplitude: 25, speed: 1.5, yOffset: 30);
+    _drawWave(canvas, size, paint, amplitude: 15, speed: 2.0, yOffset: 60);
+  }
+
+  void _drawWave(Canvas canvas, Size size, Paint paint,
+      {double amplitude = 20, double speed = 1.0, double yOffset = 0}) {
+    final path = Path();
+    final double waveWidth = size.width;
+    final double waveHeight = size.height;
+
+    // Start from bottom-left
+    path.moveTo(0, waveHeight);
+    // Create a wave from left to right
+    for (double x = 0; x <= waveWidth; x++) {
+      double y = amplitude *
+              math.sin((x / waveWidth * 2 * math.pi * speed) +
+                  (waveValue * 2 * math.pi * speed)) +
+          (waveHeight - 100 - yOffset);
+      path.lineTo(x, y);
+    }
+    // Down to bottom-right corner
+    path.lineTo(waveWidth, waveHeight);
+    // Close the shape
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_GreenWavePainter oldDelegate) => true;
+}
+
+///
+/// ──────────────────────────────────────────────────────────────────────────────
+///  AZKAR & TASBIH ADVANCED PAGE
+/// ──────────────────────────────────────────────────────────────────────────────
+///
 class AzkarAndTasbihAdvancedPage extends StatefulWidget {
   const AzkarAndTasbihAdvancedPage({Key? key}) : super(key: key);
 
@@ -34,6 +137,7 @@ class _AzkarAndTasbihAdvancedPageState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -47,12 +151,14 @@ class _AzkarAndTasbihAdvancedPageState
             ],
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: const [
-            _AzkarMenuPage(),
-            TasbihAdvancedPage(),
-          ],
+        body: AnimatedWaveBackground(
+          child: TabBarView(
+            controller: _tabController,
+            children: const [
+              _AzkarMenuPage(),
+              TasbihAdvancedPage(),
+            ],
+          ),
         ),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
@@ -64,25 +170,21 @@ class _AzkarAndTasbihAdvancedPageState
 /// ──────────────────────────────────────────────────────────────────────────────
 ///  1) AZKAR MENU PAGE
 /// ──────────────────────────────────────────────────────────────────────────────
-class _AzkarMenuPage extends StatelessWidget {
+class _AzkarMenuPage extends StatefulWidget {
   const _AzkarMenuPage();
 
   @override
+  State<_AzkarMenuPage> createState() => _AzkarMenuPageState();
+}
+
+class _AzkarMenuPageState extends State<_AzkarMenuPage> {
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
-            theme.colorScheme.secondary.withOpacity(0.05),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: ListView(
-        padding: const EdgeInsets.all(24.0),
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
         children: [
           _AzkarCard(
             title: 'Morning Azkar',
@@ -120,7 +222,6 @@ class _AzkarMenuPage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 20),
-          // Examples: You can link Sleep azkar, Waking up azkar, etc. similarly:
           _AzkarCard(
             title: 'Sleep Azkar',
             subtitle: 'أذكار النوم',
@@ -175,7 +276,6 @@ class _AzkarMenuPage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 20),
-          // Surah Al-Mulk & Surah Yaseen (the separate big lists)
           _AzkarCard(
             title: 'Surah Al-Mulk',
             subtitle: 'سورة الملك',
@@ -355,115 +455,110 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tasbih Advanced')),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              //
-              // ────────── Global Tasbih ──────────
-              //
-              const Text(
-                'Global Tasbih',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: _incrementGlobal,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: double.infinity,
-                  height: 270,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary.withOpacity(0.06),
-                        theme.colorScheme.secondary.withOpacity(0.06),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      body: AnimatedWaveBackground(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                //
+                // ────────── Global Tasbih ──────────
+                //
+                const Text(
+                  'Global Tasbih',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: _incrementGlobal,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    width: double.infinity,
+                    height: 270,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: CircularPercentIndicator(
-                      radius: 80.0,
-                      lineWidth: 12.0,
-                      animation: true,
-                      animationDuration: 300,
-                      animateFromLastPercent: true, 
-                      percent: mainFraction,
-                      center: Text(
-                        '$globalCount / $globalTarget',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
+                    child: Center(
+                      child: CircularPercentIndicator(
+                        radius: 80.0,
+                        lineWidth: 12.0,
+                        animation: true,
+                        animationDuration: 300,
+                        animateFromLastPercent: true,
+                        percent: mainFraction,
+                        center: Text(
+                          '$globalCount / $globalTarget',
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                        progressColor: theme.colorScheme.primary,
+                        backgroundColor:
+                            theme.colorScheme.primary.withOpacity(0.2),
+                        circularStrokeCap: CircularStrokeCap.round,
                       ),
-                      progressColor: theme.colorScheme.primary,
-                      backgroundColor:
-                          theme.colorScheme.primary.withOpacity(0.2),
-                      circularStrokeCap: CircularStrokeCap.round,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              //
-              // ────────── Sub Counters ──────────
-              //
-              const Text(
-                'Sub-Counters',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildSmallTasbihBox(
-                    context,
-                    title: 'SubḥānAllāh',
-                    count: countSubhanallah,
-                    target: eachTarget,
-                    fraction: subFraction1,
-                    onTap: _incrementSubhanallah,
-                  ),
-                  _buildSmallTasbihBox(
-                    context,
-                    title: 'Al-ḥamdu lillāh',
-                    count: countAlhamdulillah,
-                    target: eachTarget,
-                    fraction: subFraction2,
-                    onTap: _incrementAlhamdulillah,
-                  ),
-                  _buildSmallTasbihBox(
-                    context,
-                    title: 'Allāhu Akbar',
-                    count: countAllahuAkbar,
-                    target: eachTarget,
-                    fraction: subFraction3,
-                    onTap: _incrementAllahuAkbar,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton.icon(
-                onPressed: _resetAll,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reset All'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 30, vertical: 12),
+                const SizedBox(height: 20),
+                //
+                // ────────── Sub Counters ──────────
+                //
+                const Text(
+                  'Sub-Counters',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Tap the main box for a global count.\n'
-                'Tap any sub box for specific counts (33 each).',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildSmallTasbihBox(
+                      context,
+                      title: 'SubḥānAllāh',
+                      count: countSubhanallah,
+                      target: eachTarget,
+                      fraction: subFraction1,
+                      onTap: _incrementSubhanallah,
+                    ),
+                    _buildSmallTasbihBox(
+                      context,
+                      title: 'Al-ḥamdu lillāh',
+                      count: countAlhamdulillah,
+                      target: eachTarget,
+                      fraction: subFraction2,
+                      onTap: _incrementAlhamdulillah,
+                    ),
+                    _buildSmallTasbihBox(
+                      context,
+                      title: 'Allāhu Akbar',
+                      count: countAllahuAkbar,
+                      target: eachTarget,
+                      fraction: subFraction3,
+                      onTap: _incrementAllahuAkbar,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton.icon(
+                  onPressed: _resetAll,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reset All'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Tap the main box for a global count.\n'
+                  'Tap any sub box for specific counts (33 each).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -535,6 +630,10 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
 ///  - A top linear progress bar for overall completion (how many dhikr done).
 ///  - Each dhikr has a circular indicator that animates from the last percent.
 ///  - Confetti on the final item, then a completion dialog.
+///  - Copy-to-clipboard button for the Arabic text.
+///  - **Now**: Less empty space in the card, plus a small "Reminder" message at the bottom.
+///  - **Display Style Toggle**: Switch between "Compact" vs "Expanded".
+///
 class AzkarReadingPage extends StatefulWidget {
   final String title;
   final List<DhikrItem> items;
@@ -553,6 +652,8 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
   late PageController _pageController;
   late List<int> currentCounts;
   late ConfettiController _confettiCtrl;
+
+  bool _compactView = false; // toggles card spacing / style
 
   @override
   void initState() {
@@ -623,137 +724,184 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
     Navigator.pop(context);
   }
 
+  // Copy to clipboard logic
+  void _copyAzkarText(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Azkar text copied to clipboard!'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                _compactView = (value == 'Compact');
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'Compact',
+                child: Text('Compact View'),
+              ),
+              const PopupMenuItem(
+                value: 'Expanded',
+                child: Text('Expanded View'),
+              ),
+            ],
+            icon: const Icon(Icons.view_list_outlined),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
-          Column(
-            children: [
-              // top linear progress
-              LinearPercentIndicator(
-                lineHeight: 6.0,
-                animation: true,
-                animationDuration: 300,
-                animateFromLastPercent: true,
-                percent: overallFraction,
-                progressColor: theme.colorScheme.primary,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                padding: EdgeInsets.zero,
-              ),
-              // main content: PageView
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: widget.items.length,
-                  itemBuilder: (context, index) {
-                    final item = widget.items[index];
-                    final count = currentCounts[index];
-                    final required = item.repeat;
-                    final fraction = (count / required).clamp(0.0, 1.0);
+          // Wave background
+          AnimatedWaveBackground(
+            child: Column(
+              children: [
+                // top linear progress
+                LinearPercentIndicator(
+                  lineHeight: 6.0,
+                  animation: true,
+                  animationDuration: 300,
+                  animateFromLastPercent: true,
+                  percent: overallFraction,
+                  progressColor: theme.colorScheme.primary,
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                  padding: EdgeInsets.zero,
+                ),
+                // main content: PageView
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: widget.items.length,
+                    itemBuilder: (context, index) {
+                      final item = widget.items[index];
+                      final count = currentCounts[index];
+                      final required = item.repeat;
+                      final fraction = (count / required).clamp(0.0, 1.0);
 
-                    return GestureDetector(
-                      onTap: () => _incrementCount(index),
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: Card(
-                            elevation: 8,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20, 
-                                vertical: 30,
-                              ),
-                              decoration: BoxDecoration(
+                      return GestureDetector(
+                        onTap: () => _incrementCount(index),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: EdgeInsets.all(_compactView ? 8.0 : 16.0),
+                          child: Center(
+                            child: Card(
+                              elevation: 8,
+                              shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    theme.colorScheme.primary.withOpacity(0.08),
-                                    theme.colorScheme.secondary.withOpacity(0.08),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
                               ),
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Arabic text
-                                    Directionality(
-                                      textDirection: TextDirection.rtl,
-                                      child: Text(
-                                        item.arabic,
-                                        textAlign: TextAlign.center,
+                              child: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: _compactView ? 16 : 20,
+                                  vertical: _compactView ? 20 : 30,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Arabic text
+                                      Directionality(
+                                        textDirection: TextDirection.rtl,
+                                        child: Text(
+                                          item.arabic,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: _compactView ? 18 : 20,
+                                            height: 1.6,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      // We put your "translation" or short note below
+                                      Text(
+                                        item.translation,
+                                        textAlign: TextAlign.justify,
                                         style: TextStyle(
-                                          fontSize: 20,
-                                          height: 1.6,
-                                          color: theme.colorScheme.onSurface,
+                                          fontSize: _compactView ? 14 : 15,
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.black54,
+                                          height: 1.4,
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    // We put your "translation" or short note below
-                                    Text(
-                                      item.translation,
-                                      textAlign: TextAlign.justify,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontStyle: FontStyle.italic,
-                                        color: Colors.black54,
-                                        height: 1.4,
+                                      const SizedBox(height: 20),
+                                      // circular progress
+                                      CircularPercentIndicator(
+                                        radius: _compactView ? 50 : 60,
+                                        lineWidth: _compactView ? 6 : 8,
+                                        animation: true,
+                                        animationDuration: 300,
+                                        animateFromLastPercent: true,
+                                        percent: fraction,
+                                        center: Text(
+                                          '$count / $required',
+                                          style: TextStyle(
+                                            fontSize: _compactView ? 16 : 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        progressColor: theme.colorScheme.primary,
+                                        backgroundColor: theme.colorScheme.primary
+                                            .withOpacity(0.2),
+                                        circularStrokeCap: CircularStrokeCap.round,
                                       ),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    // circular progress
-                                    CircularPercentIndicator(
-                                      radius: 60.0,
-                                      lineWidth: 8.0,
-                                      animation: true,
-                                      animationDuration: 300,
-                                      animateFromLastPercent: true,
-                                      percent: fraction,
-                                      center: Text(
-                                        '$count / $required',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
+                                      const SizedBox(height: 10),
+                                      // Copy to clipboard button
+                                      TextButton.icon(
+                                        onPressed: () => _copyAzkarText(item.arabic),
+                                        icon: const Icon(Icons.copy),
+                                        label: const Text('Copy'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // A small reminder at the bottom
+                                      const Text(
+                                        'Tap Anywhere to Count',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
                                         ),
                                       ),
-                                      progressColor: theme.colorScheme.primary,
-                                      backgroundColor: theme.colorScheme.primary
-                                          .withOpacity(0.2),
-                                      circularStrokeCap: CircularStrokeCap.round,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    const Text(
-                                      'Tap Anywhere to Count',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 10),
+                                      if (!_compactView)
+                                        const Text(
+                                          'Remembrance of Allah is the greatest (Qur\'an 29:45).',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontStyle: FontStyle.italic,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           // Confetti overlay
           Align(
