@@ -93,7 +93,7 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
       if (headingDeg < 0) headingDeg += 360;
 
       setState(() {
-        _deviceAngle = headingDeg; 
+        _deviceAngle = headingDeg;
       });
     });
   }
@@ -143,9 +143,6 @@ class _QiblaPageState extends State<QiblaPage> with SingleTickerProviderStateMix
   }
 }
 
-/// A widget that shows a static dial plus two rotating arrows:
-///  - The device heading arrow
-///  - The Qibla arrow (Ka'bah icon)
 class _QiblaCompass extends StatelessWidget {
   final double deviceAngle;
   final double qiblaAngle;
@@ -162,12 +159,7 @@ class _QiblaCompass extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // We'll keep the dial static (N always up).
-    // Each arrow is rotated relative to "N=0".
-    // deviceAngle means the phone is that many degrees from north.
-    // qiblaAngle means Qibla is that many degrees from north.
-
-    // difference between device & qibla
+    // Difference between device & qibla
     double diff = (qiblaAngle - deviceAngle) % 360;
     if (diff > 180) diff -= 360; // so that -179 < diff <= 180
     final diffAbs = diff.abs();
@@ -179,47 +171,38 @@ class _QiblaCompass extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // The dial (static).
           SizedBox(
             width: 300,
             height: 300,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Painted background: circle with cardinal directions
                 CustomPaint(
                   painter: _CompassDialPainter(theme: theme),
                   size: const Size(300, 300),
                 ),
-
-                // 1) Device heading arrow
                 _ArrowWidget(
                   angle: deviceAngle,
                   length: 120,
                   color: Colors.blueAccent,
                   thickness: 4,
-                  icon: Icons.navigation, // or whatever arrow
+                  icon: Icons.navigation,
                   iconColor: Colors.blueAccent,
                   label: 'Device',
                 ),
-
-                // 2) Qibla arrow
                 _ArrowWidget(
                   angle: qiblaAngle,
                   length: 100,
                   color: isCloseToQibla ? Colors.green : Colors.redAccent,
                   thickness: 4,
-                  // Could use a Ka'bah icon or a custom asset if you want
-                  icon: Icons.star, 
+                  icon: Icons.star,
                   iconColor: isCloseToQibla ? Colors.green : Colors.redAccent,
                   label: 'Qibla',
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-          // Info text
           Text(
             isCloseToQibla 
               ? 'You Are Facing Qibla (±5°)!' 
@@ -249,9 +232,8 @@ class _QiblaCompass extends StatelessWidget {
   }
 }
 
-/// A simple arrow widget that rotates from "north=0" by [angle] degrees.
 class _ArrowWidget extends StatelessWidget {
-  final double angle; // 0..360 from north
+  final double angle;
   final double length;
   final double thickness;
   final Color color;
@@ -272,8 +254,6 @@ class _ArrowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Convert angle in degrees to turns for AnimatedRotation
-    // turns = angleDeg / 360
     final double turns = angle / 360.0;
 
     return AnimatedRotation(
@@ -283,16 +263,13 @@ class _ArrowWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // arrow line
           Container(
             width: thickness,
             height: length,
             color: color.withOpacity(0.7),
           ),
-          // arrow icon
           Icon(icon, size: 30, color: iconColor),
           const SizedBox(height: 4),
-          // optional label below icon
           Text(
             label,
             style: TextStyle(
@@ -307,7 +284,6 @@ class _ArrowWidget extends StatelessWidget {
   }
 }
 
-/// Paints a static compass dial with cardinal directions at top, right, bottom, left.
 class _CompassDialPainter extends CustomPainter {
   final ThemeData theme;
 
@@ -318,14 +294,12 @@ class _CompassDialPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
 
-    // Outer circle
     final circlePaint = Paint()
       ..color = theme.colorScheme.onBackground.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
     canvas.drawCircle(center, radius - 8, circlePaint);
 
-    // Ticks (every 15 degrees => 24 ticks)
     final tickPaint = Paint()
       ..color = theme.colorScheme.onBackground.withOpacity(0.6)
       ..strokeWidth = 2;
@@ -343,7 +317,6 @@ class _CompassDialPainter extends CustomPainter {
       canvas.drawLine(start, end, tickPaint);
     }
 
-    // Label cardinal directions: N, E, S, W
     _drawDirectionLabel(canvas, center, radius, 0, 'N');
     _drawDirectionLabel(canvas, center, radius, math.pi / 2, 'E');
     _drawDirectionLabel(canvas, center, radius, math.pi, 'S');
