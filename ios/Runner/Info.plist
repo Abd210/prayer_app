@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- ────────────────────────────────────────────────────────────────────── -->
+	<!--  Location Usage Descriptions for iOS                                 -->
+	<!--  Make sure to update the text to reflect why your app needs them.   -->
+	<!-- ────────────────────────────────────────────────────────────────────── -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show accurate prayer times and Qibla direction.</string>
+
+	<!-- If you need background location access, also add this: -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location while in the background to provide continuous location-based services.</string>
+
 </dict>
 </plist>
