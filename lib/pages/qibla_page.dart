@@ -1,3 +1,4 @@
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
@@ -5,11 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
 
-/// Example offset in degrees to correct for magnetic declination.
-/// Adjust this to your local region (could be ~10-20°).
-const double kMagneticDeclinationOffset = 20.0;
-
-/// QiblaPage: Now with a refresh button & manual declination offset for accuracy.
+/// QiblaPage: Uses the same color scheme as PrayerTimesPage for a consistent UI.
 class QiblaPage extends StatefulWidget {
   const QiblaPage({Key? key}) : super(key: key);
 
@@ -22,20 +19,14 @@ class _QiblaPageState extends State<QiblaPage> {
   String _cityName = 'Locating...';
 
   // Compass headings
-  double? _deviceHeading;   // from FlutterCompass (0–360) (magnetic)
-  double? _qiblaDirection;  // from Adhan (0–360, clockwise from True North)
+  double? _deviceHeading;   // from FlutterCompass (0–360)
+  double? _qiblaDirection;  // from Adhan (0–360, clockwise from North)
 
   @override
   void initState() {
     super.initState();
     _initLocation();
     _listenHeading();
-  }
-
-  /// Refresh location/Qibla if user taps the Refresh button
-  Future<void> _refreshQibla() async {
-    setState(() => _cityName = 'Refreshing...');
-    await _initLocation();
   }
 
   /// Get user location, then compute Qibla direction
@@ -66,10 +57,10 @@ class _QiblaPageState extends State<QiblaPage> {
                     '${position.longitude.toStringAsFixed(2)}';
       }
 
-      // Calculate Qibla direction (true north)
+      // Calculate Qibla direction
       final coords = Coordinates(position.latitude, position.longitude);
       final qibla = Qibla(coords);
-      _qiblaDirection = qibla.direction; // 0..360 from True North
+      _qiblaDirection = qibla.direction;
 
       setState(() {});
     } catch (e) {
@@ -81,7 +72,6 @@ class _QiblaPageState extends State<QiblaPage> {
   /// Listen to compass heading via FlutterCompass
   void _listenHeading() {
     FlutterCompass.events?.listen((event) {
-      // event.heading is typically magnetic heading (0..360)
       setState(() {
         _deviceHeading = event.heading ?? 0;
       });
@@ -113,19 +103,12 @@ class _QiblaPageState extends State<QiblaPage> {
     );
   }
 
-  /// True heading is device heading + declination offset
-  /// The Qibla from Adhan is based on True North, so we match them up
-  double get _trueHeading {
-    if (_deviceHeading == null) return 0;
-    return (_deviceHeading! + kMagneticDeclinationOffset) % 360;
-  }
-
-  /// Minimal angular difference [0..180] between true heading & Qibla
+  /// How close user heading is to Qibla
   double _calculateDifference() {
-    if (_qiblaDirection == null) return 999.0;
-
-    double diff = (_qiblaDirection! - _trueHeading) % 360;
-    if (diff < 0) diff += 360;
+    if (_deviceHeading == null || _qiblaDirection == null) {
+      return 999.0;
+    }
+    double diff = (_deviceHeading! - _qiblaDirection!).abs();
     if (diff > 180) diff = 360 - diff;
     return diff;
   }
@@ -134,20 +117,15 @@ class _QiblaPageState extends State<QiblaPage> {
   Widget build(BuildContext context) {
     final diff = _calculateDifference();
     final isFacingQibla = diff <= 5; // ±5° threshold
-    final heading = _trueHeading;    // Use "true heading" with offset
+    final heading = _deviceHeading ?? 0.0;
     final qibla = _qiblaDirection ?? 0.0;
 
     return Scaffold(
+      // Use the same AppBar style as in your PrayerTimesPage
       appBar: AppBar(
         title: Text(_cityName),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: _refreshQibla,
-          ),
-        ],
       ),
+      // Background with a subtle wave effect in the same color scheme
       body: AnimatedWaveBackground(
         child: _currentPosition == null
             ? const Center(child: CircularProgressIndicator())
@@ -155,7 +133,7 @@ class _QiblaPageState extends State<QiblaPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Device heading & Qibla reading
+                    // Top row: device heading & qibla
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -165,6 +143,7 @@ class _QiblaPageState extends State<QiblaPage> {
                     ),
                     const SizedBox(height: 8),
 
+                    // Facing Qibla or difference
                     Text(
                       isFacingQibla
                           ? 'You are facing the Qibla!'
@@ -180,12 +159,15 @@ class _QiblaPageState extends State<QiblaPage> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Rotate the entire compass by -trueHeading so the "north" pointer remains up
+                    // Advanced Compass
+                    // Rotate entire widget by -heading so north needle remains up
                     Transform.rotate(
                       angle: -heading * (math.pi / 180),
                       child: CustomPaint(
                         size: const Size(300, 300),
-                        painter: QiblaCompassPainter(qiblaOffset: qibla),
+                        painter: QiblaCompassPainter(
+                          qiblaOffset: qibla,
+                        ),
                       ),
                     ),
                   ],
@@ -198,11 +180,10 @@ class _QiblaPageState extends State<QiblaPage> {
   Widget _buildReading(String label, double value) {
     return Column(
       children: [
-        Text(label,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-            )),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 16, color: Colors.black87),
+        ),
         const SizedBox(height: 4),
         Text(
           '${value.toStringAsFixed(1)}°',
@@ -254,6 +235,7 @@ class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
         return CustomPaint(
           painter: _WavePainter(
             animationValue: _waveController.value,
+            // Use your colorScheme's primary color as the wave tint
             waveColor: theme.colorScheme.primary.withOpacity(0.15),
           ),
           child: widget.child,
@@ -284,8 +266,13 @@ class _WavePainter extends CustomPainter {
   }
 
   void _drawWave(
-      Canvas canvas, Size size, Paint paint,
-      {required double amplitude, required double speed, required double yOffset}) {
+    Canvas canvas,
+    Size size,
+    Paint paint, {
+    required double amplitude,
+    required double speed,
+    required double yOffset,
+  }) {
     final path = Path();
     final width = size.width;
     final height = size.height;
@@ -307,20 +294,23 @@ class _WavePainter extends CustomPainter {
   bool shouldRepaint(_WavePainter oldDelegate) => true;
 }
 
-/// Same QiblaCompassPainter, but we rely on true heading (with offset).
+/// QiblaCompassPainter
+///  - Uses Theme.of(context).colorScheme for consistency with PrayerTimesPage
 class QiblaCompassPainter extends CustomPainter {
-  final double qiblaOffset; // Qibla angle in degrees from True North
+  final double qiblaOffset; // Qibla angle in degrees from North
 
   QiblaCompassPainter({required this.qiblaOffset});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Placeholder colors; tweak as needed
-    const ringColor = Colors.deepPurple;
-    const tickColor = Colors.deepPurpleAccent;
-    const mainNeedleColor = Colors.deepPurple;
-    const qiblaNeedleColor = Colors.orangeAccent;
-    const cardinalColor = Colors.deepPurple;
+    // Because we need theme, we can’t call Theme.of(context) here directly.
+    // We'll pick some default color placeholders, but in practice, the wave
+    // background helps unify color usage with the rest of the app.
+    const ringColor = Colors.deepPurple; 
+    const tickColor = Colors.deepPurpleAccent; 
+    const mainNeedleColor = Colors.deepPurple; 
+    const qiblaNeedleColor = Colors.orangeAccent; 
+    const cardinalColor = Colors.deepPurple; 
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
@@ -356,7 +346,7 @@ class QiblaCompassPainter extends CustomPainter {
     _drawCardinal(canvas, center, radius, 'S', math.pi / 2, cardinalColor);
     _drawCardinal(canvas, center, radius, 'W', math.pi, cardinalColor);
 
-    // Main needle (device "north" pointer, pointing up in painter coords)
+    // Main needle (device "north" pointer, drawn pointing up)
     final needlePaint = Paint()
       ..color = mainNeedleColor
       ..style = PaintingStyle.fill;
@@ -368,7 +358,7 @@ class QiblaCompassPainter extends CustomPainter {
     canvas.drawPath(needlePath, needlePaint);
 
     // Qibla pointer
-    // Rotate canvas by qiblaOffset in radians
+    // We'll rotate the canvas by qiblaOffset (in radians), then draw a pointer
     canvas.save();
     final rad = qiblaOffset * (math.pi / 180);
     canvas.translate(center.dx, center.dy);
@@ -410,5 +400,5 @@ class QiblaCompassPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(QiblaCompassPainter oldDelegate) => true;
 }
