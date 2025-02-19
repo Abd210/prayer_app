@@ -31,7 +31,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   final int _pageCenterIndex = 7;
   int _currentIndex = 7;
 
-  // Next Prayer countdown values
+  // Next Prayer countdown
   Timer? _countdownTimer;
   Duration _timeUntilNext = Duration.zero;
   String _nextPrayerName = '-';
@@ -83,60 +83,66 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   /// Acquires the user’s location (via LocationService) and attempts to determine city name.
   Future<void> _initLocation() async {
     final pos = await LocationService.determinePosition();
-    if (pos != null) {
-      _currentPosition = pos;
-      try {
-        final placemarks =
-            await placemarkFromCoordinates(pos.latitude, pos.longitude);
-        if (placemarks.isNotEmpty) {
-          // Try to find a placemark with a non-empty locality.
-          final placemark = placemarks.firstWhere(
-            (p) =>
-                (p.locality != null && p.locality!.isNotEmpty) ||
-                (p.subLocality != null && p.subLocality!.isNotEmpty) ||
-                (p.subAdministrativeArea != null &&
-                    p.subAdministrativeArea!.isNotEmpty) ||
-                (p.administrativeArea != null &&
-                    p.administrativeArea!.isNotEmpty) ||
-                (p.country != null && p.country!.isNotEmpty) ||
-                (p.name != null && p.name!.isNotEmpty),
-            orElse: () => placemarks.first,
-          );
-          // Check multiple fields in order.
-          String city = placemark.locality ??
-              placemark.subLocality ??
-              placemark.subAdministrativeArea ??
-              placemark.administrativeArea ??
-              placemark.country ??
-              placemark.name ??
-              '';
-          // If still empty, fallback to coordinates.
-          if (city.isEmpty) {
-            city =
-                '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
-          }
-          _cityName = city;
-        } else {
-          _cityName =
+    if (!mounted) return;
+
+    if (pos == null) {
+      // If null, user denied or location not available
+      setState(() {
+        _cityName = 'Location unavailable';
+      });
+      return;
+    }
+
+    _currentPosition = pos;
+    try {
+      final placemarks =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      if (placemarks.isNotEmpty) {
+        // Try to find a placemark with a non-empty locality.
+        final placemark = placemarks.firstWhere(
+          (p) =>
+              (p.locality != null && p.locality!.isNotEmpty) ||
+              (p.subLocality != null && p.subLocality!.isNotEmpty) ||
+              (p.subAdministrativeArea != null &&
+                  p.subAdministrativeArea!.isNotEmpty) ||
+              (p.administrativeArea != null &&
+                  p.administrativeArea!.isNotEmpty) ||
+              (p.country != null && p.country!.isNotEmpty) ||
+              (p.name != null && p.name!.isNotEmpty),
+          orElse: () => placemarks.first,
+        );
+        // Check multiple fields in order.
+        String city = placemark.locality ??
+            placemark.subLocality ??
+            placemark.subAdministrativeArea ??
+            placemark.administrativeArea ??
+            placemark.country ??
+            placemark.name ??
+            '';
+        // If still empty, fallback to coordinates.
+        if (city.isEmpty) {
+          city =
               '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
         }
-      } catch (e) {
-        // Fallback to coordinates if reverse-geocoding fails.
+        _cityName = city;
+      } else {
         _cityName =
             '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
       }
-      setState(() {});
-      _preloadPrayerTimes();
-      _updateNextPrayer();
-    } else {
-      // If null, user denied or not available
-      _cityName = 'Location unavailable';
-      setState(() {});
+    } catch (e) {
+      // Fallback if reverse-geocoding fails.
+      _cityName =
+          '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
     }
+
+    setState(() {});
+    _preloadPrayerTimes();
+    _updateNextPrayer();
   }
 
   /// Precompute PrayerTimes for each day in [-7..+7]
   void _preloadPrayerTimes() {
+    // If we STILL don't have position, do nothing
     if (_currentPosition == null) return;
     final provider =
         Provider.of<PrayerSettingsProvider>(context, listen: false);
@@ -155,8 +161,8 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
       params.adjustments.maghrib = 2;
       params.adjustments.isha = 2;
 
-      final coords =
-          Coordinates(_currentPosition!.latitude, _currentPosition!.longitude);
+      final coords = Coordinates(
+          _currentPosition!.latitude, _currentPosition!.longitude);
       final pt = PrayerTimes(coords, comps, params);
       final st = SunnahTimes(pt);
 
@@ -232,7 +238,8 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     });
   }
 
-  DateTime _previousPrayerTime(Prayer prayer, Map<Prayer, DateTime> times) {
+  DateTime _previousPrayerTime(
+      Prayer prayer, Map<Prayer, DateTime> times) {
     if (prayer == Prayer.fajr) {
       return times[Prayer.isha]!;
     }
@@ -252,6 +259,23 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
   @override
   Widget build(BuildContext context) {
+    // If we never got location, show a friendly message
+    if (_currentPosition == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_cityName), // e.g. "Location unavailable"
+        ),
+        body: const Center(
+          child: Text(
+            'Unable to retrieve location.\nPlease enable permissions.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    // Otherwise, proceed with normal UI
     return Scaffold(
       appBar: AppBar(
         title: Text(_cityName),
