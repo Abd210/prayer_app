@@ -144,12 +144,15 @@ class _AzkarAndTasbihAdvancedPageState
         appBar: AppBar(
           title: const Text('Azkar & Tasbih'),
           bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(icon: Icon(Icons.menu_book), text: 'Azkar'),
-              Tab(icon: Icon(Icons.fingerprint), text: 'Tasbih'),
-            ],
-          ),
+          controller: _tabController,
+          labelColor: Colors.white, // Ensure text of selected tab is white
+          unselectedLabelColor: Colors.white, // Ensure text of unselected tab is white
+          tabs: const [
+            Tab(icon: Icon(Icons.menu_book), text: 'Azkar'),
+            Tab(icon: Icon(Icons.fingerprint), text: 'Tasbih'),
+          ],
+        ),
+
         ),
         body: AnimatedWaveBackground(
           child: TabBarView(
@@ -346,7 +349,7 @@ class _AzkarCard extends StatelessWidget {
           padding: const EdgeInsets.all(24.0),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white, size: 36),
+                Icon(icon, color: Colors.white, size: 36),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -544,7 +547,7 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
                 ElevatedButton.icon(
                   onPressed: _resetAll,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Reset All'),
+                  label: const Text('Reset All',style: TextStyle(color: Colors.white),),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 30, vertical: 12),
