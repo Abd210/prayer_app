@@ -1,14 +1,105 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
+import 'package:prayer/pages/statistcs.dart';
 import 'package:provider/provider.dart';
 
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
+
+/// Animated wave background for matching the Qibla style
+class AnimatedWaveBackground extends StatefulWidget {
+  final Widget child;
+  const AnimatedWaveBackground({Key? key, required this.child}) : super(key: key);
+
+  @override
+  _AnimatedWaveBackgroundState createState() => _AnimatedWaveBackgroundState();
+}
+
+class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: _waveController,
+      builder: (_, __) {
+        return CustomPaint(
+          painter: _WavePainter(
+            animationValue: _waveController.value,
+            waveColor: theme.colorScheme.primary.withOpacity(0.15),
+          ),
+          child: widget.child,
+        );
+      },
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  final double animationValue;
+  final Color waveColor;
+  _WavePainter({required this.animationValue, required this.waveColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Paint background white first
+    canvas.drawColor(Colors.white, BlendMode.srcOver);
+
+    final paint = Paint()..color = waveColor;
+    _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
+    _drawWave(canvas, size, paint, amplitude: 24, speed: 1.4, yOffset: 40);
+    _drawWave(canvas, size, paint, amplitude: 16, speed: 2.0, yOffset: 70);
+  }
+
+  void _drawWave(
+    Canvas canvas,
+    Size size,
+    Paint paint, {
+    required double amplitude,
+    required double speed,
+    required double yOffset,
+  }) {
+    final path = Path();
+    path.moveTo(0, size.height);
+
+    for (double x = 0; x <= size.width; x++) {
+      final y = amplitude *
+              math.sin((x / size.width * 2 * math.pi * speed) +
+                  (animationValue * 2 * math.pi * speed)) +
+          (size.height - 120 - yOffset);
+      path.lineTo(x, y);
+    }
+    path.lineTo(size.width, size.height);
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter oldDelegate) => true;
+}
 
 class PrayerTimesPage extends StatefulWidget {
   const PrayerTimesPage({Key? key}) : super(key: key);
@@ -17,27 +108,25 @@ class PrayerTimesPage extends StatefulWidget {
   State<PrayerTimesPage> createState() => PrayerTimesPageState();
 }
 
-class PrayerTimesPageState extends State<PrayerTimesPage> {
+/// We'll detect app lifecycle changes (auto-refresh on resume) + wave background
+class PrayerTimesPageState extends State<PrayerTimesPage>
+    with WidgetsBindingObserver {
   Position? _currentPosition;
   String _cityName = '...';
 
-  // Cache for prayer times for days in the range -7..+7
   final Map<int, PrayerTimes?> _cachedTimes = {};
   final Map<int, SunnahTimes?> _cachedSunnah = {};
   final int _daysRange = 7;
 
-  // PageView to swipe between days
   late PageController _pageController;
   final int _pageCenterIndex = 7;
   int _currentIndex = 7;
 
-  // Next Prayer countdown values
   Timer? _countdownTimer;
   Duration _timeUntilNext = Duration.zero;
   String _nextPrayerName = '-';
   double _prayerProgress = 0.0;
 
-  // Random tip data
   final List<String> _tips = [
     '“Establish prayer and give charity.”',
     '“Prayer is better than sleep.”',
@@ -52,14 +141,13 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // observe app lifecycle
     _pageController = PageController(initialPage: _pageCenterIndex);
     _randomTip = _tips[math.Random().nextInt(_tips.length)];
 
-    // We call _initLocation once here
     _initLocation();
     _startCountdown();
 
-    // Listen for changes in prayer settings to update prayer times
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<PrayerSettingsProvider>(context, listen: false)
           .addListener(_onPrayerSettingsChanged);
@@ -68,6 +156,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     Provider.of<PrayerSettingsProvider>(context, listen: false)
         .removeListener(_onPrayerSettingsChanged);
     _countdownTimer?.cancel();
@@ -75,8 +164,17 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     super.dispose();
   }
 
-  /// Called from main_nav_screen when user taps the "Prayers" tab
-  /// or from the refresh button in the AppBar
+  /// Called automatically when app is resumed from background
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // Auto-refresh
+      refreshPage();
+    }
+  }
+
+  /// Called by MainNavScreen or from the refresh icon
   void refreshPage() {
     _initLocation();
   }
@@ -88,7 +186,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     _updateNextPrayer();
   }
 
-  /// Acquires the user’s location, attempts to determine a city name.
   Future<void> _initLocation() async {
     final pos = await LocationService.determinePosition();
     if (!mounted) return;
@@ -106,7 +203,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
       final placemarks =
           await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
-        // Try to find a meaningful place field
         final placemark = placemarks.firstWhere(
           (p) =>
               (p.locality != null && p.locality!.isNotEmpty) ||
@@ -125,7 +221,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
             placemark.country ??
             placemark.name ??
             '';
-        // If still empty, fallback
         if (city.isEmpty) {
           city =
               '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
@@ -145,7 +240,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     _updateNextPrayer();
   }
 
-  /// Precompute PrayerTimes for each day in [-7..+7]
   void _preloadPrayerTimes() {
     if (_currentPosition == null) return;
     final provider =
@@ -164,7 +258,10 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
       params.adjustments.maghrib = 2;
       params.adjustments.isha = 2;
 
-      final coords = Coordinates(_currentPosition!.latitude, _currentPosition!.longitude);
+      final coords = Coordinates(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+      );
       final pt = PrayerTimes(coords, comps, params);
       final st = SunnahTimes(pt);
 
@@ -174,7 +271,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     setState(() {});
   }
 
-  /// Starts a periodic timer to update the next prayer countdown
   void _startCountdown() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -182,7 +278,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     });
   }
 
-  /// Determines the next prayer time for the current day
   void _updateNextPrayer() {
     final pt = _cachedTimes[0];
     if (pt == null) {
@@ -192,7 +287,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
       setState(() {});
       return;
     }
-
     final now = DateTime.now();
     final timesLocal = <Prayer, DateTime>{
       Prayer.fajr: pt.fajr.toLocal(),
@@ -224,7 +318,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     }
 
     if (nextTime == null) {
-      // If we didn't find next prayer, it must be tomorrow's Fajr
       final tomorrowFajr = pt.fajr.add(const Duration(days: 1)).toLocal();
       nextTime = tomorrowFajr;
       nextName = 'FAJR (TOMORROW)';
@@ -246,13 +339,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     if (prayer == Prayer.fajr) {
       return times[Prayer.isha]!;
     }
-    final order = [
-      Prayer.fajr,
-      Prayer.dhuhr,
-      Prayer.asr,
-      Prayer.maghrib,
-      Prayer.isha
-    ];
+    final order = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
     final idx = order.indexOf(prayer);
     return times[order[idx - 1]]!;
   }
@@ -261,55 +348,72 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_cityName),
-        actions: [
-          // Refresh icon in the AppBar
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: refreshPage,
-          ),
-        ],
-      ),
-      body: _currentPosition == null
-          ? const Center(
-              child: Text(
-                'Location unavailable.\nPlease enable GPS/Permissions.',
-                textAlign: TextAlign.center,
-              ),
-            )
-          : Column(
-              children: [
-                _buildNextPrayerCard(context),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _currentIndex = _pageCenterIndex;
-                      });
-                      _pageController.jumpToPage(_pageCenterIndex);
-                    },
-                    icon: const Icon(Icons.today),
-                    label: const Text('Return to Today'),
-                  ),
-                ),
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: (_daysRange * 2) + 1,
-                    onPageChanged: (idx) {
-                      setState(() => _currentIndex = idx);
-                    },
-                    itemBuilder: (context, idx) {
-                      final offset = _offsetFromIndex(idx);
-                      return _buildDayView(offset);
-                    },
-                  ),
-                ),
-              ],
+    // We wrap the entire content in AnimatedWaveBackground
+    return AnimatedWaveBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(_cityName),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: refreshPage,
             ),
+          ],
+        ),
+        // Add the floating action button with a "statistics" icon
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            // Navigate to the placeholder statistics page
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StatisticsPage()),
+            );
+          },
+          tooltip: 'Statistics',
+          child: const Icon(Icons.insert_chart_outlined),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
+        body: _currentPosition == null
+            ? const Center(
+                child: Text(
+                  'Location unavailable.\nPlease enable GPS/Permissions.',
+                  textAlign: TextAlign.center,
+                ),
+              )
+            : Column(
+                children: [
+                  _buildNextPrayerCard(context),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _currentIndex = _pageCenterIndex;
+                        });
+                        _pageController.jumpToPage(_pageCenterIndex);
+                      },
+                      icon: const Icon(Icons.today),
+                      label: const Text('Return to Today'),
+                    ),
+                  ),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: (_daysRange * 2) + 1,
+                      onPageChanged: (idx) {
+                        setState(() => _currentIndex = idx);
+                      },
+                      itemBuilder: (context, idx) {
+                        final offset = _offsetFromIndex(idx);
+                        return _buildDayView(offset);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -382,7 +486,8 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
     final date = DateTime.now().add(Duration(days: offset));
     final dateStr = DateFormat('EEEE, MMM d, yyyy').format(date);
 
-    final provider = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final provider =
+        Provider.of<PrayerSettingsProvider>(context, listen: false);
     final format = provider.use24hFormat ? 'HH:mm' : 'hh:mm a';
 
     return Padding(
@@ -422,7 +527,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage> {
   Widget _prayerRow(String label, DateTime time, String format, IconData icon) {
     final localTime = time.toLocal();
     final display = DateFormat(format).format(localTime);
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
