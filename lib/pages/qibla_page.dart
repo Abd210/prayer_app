@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
-import '../services/location_service.dart'; // <-- Use the same LocationService
 
-/// QiblaPage: Uses the same color scheme as PrayerTimesPage for consistent UI.
-/// Reuses LocationService.determinePosition() so iOS won't re-prompt if already granted.
+import '../services/location_service.dart';
+
+/// QiblaPage: now reuses the same LocationService as PrayerTimesPage
+/// so no double prompts and consistent behavior whichever is opened first.
 class QiblaPage extends StatefulWidget {
   const QiblaPage({Key? key}) : super(key: key);
 
@@ -17,8 +18,8 @@ class QiblaPage extends StatefulWidget {
 class _QiblaPageState extends State<QiblaPage> {
   String _cityName = 'Locating...';
 
-  double? _deviceHeading;   // from FlutterCompass (0–360)
-  double? _qiblaDirection;  // from Adhan (0–360, clockwise from North)
+  double? _deviceHeading;   // from FlutterCompass (0..360)
+  double? _qiblaDirection;  // from Adhan (0..360)
 
   @override
   void initState() {
@@ -27,18 +28,16 @@ class _QiblaPageState extends State<QiblaPage> {
     _listenHeading();
   }
 
-  /// Get user location (via LocationService), then compute Qibla direction
   Future<void> _initLocation() async {
     final position = await LocationService.determinePosition();
     if (!mounted) return;
 
     if (position == null) {
-      // Permission was denied or service is off
+      // User denied or not available
       setState(() => _cityName = 'Location unavailable');
       return;
     }
 
-    // We have a valid Position; do reverse-geocoding
     try {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
@@ -52,28 +51,26 @@ class _QiblaPageState extends State<QiblaPage> {
             p.country ??
             '';
         if (city.isEmpty) {
-          city = '${position.latitude.toStringAsFixed(2)}, '
-                  '${position.longitude.toStringAsFixed(2)}';
+          city =
+              '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
         }
         _cityName = city;
       } else {
-        _cityName = '${position.latitude.toStringAsFixed(2)}, '
-                    '${position.longitude.toStringAsFixed(2)}';
+        _cityName =
+            '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
       }
 
-      // Calculate Qibla direction
+      // Calculate Qibla direction (0..360 from North)
       final coords = Coordinates(position.latitude, position.longitude);
       final qibla = Qibla(coords);
-      _qiblaDirection = qibla.direction; // 0..360 from North
+      _qiblaDirection = qibla.direction;
     } catch (_) {
-      // If geocoding fails
       _cityName = 'Location unavailable';
     }
 
     setState(() {});
   }
 
-  /// Listen to compass heading via FlutterCompass
   void _listenHeading() {
     FlutterCompass.events?.listen((event) {
       setState(() {
@@ -82,7 +79,7 @@ class _QiblaPageState extends State<QiblaPage> {
     });
   }
 
-  /// Compute difference [0..180] between device heading & Qibla
+  /// Minimal angular difference [0..180] between heading & Qibla
   double _calculateDifference() {
     if (_deviceHeading == null || _qiblaDirection == null) {
       return 999.0;
@@ -95,7 +92,7 @@ class _QiblaPageState extends State<QiblaPage> {
   @override
   Widget build(BuildContext context) {
     final diff = _calculateDifference();
-    final isFacingQibla = diff <= 5; // ±5° threshold
+    final isFacingQibla = diff <= 5;
     final heading = _deviceHeading ?? 0.0;
     final qibla = _qiblaDirection ?? 0.0;
 
@@ -110,7 +107,7 @@ class _QiblaPageState extends State<QiblaPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Row showing heading & qibla angles
+                    // Row: heading & qibla
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -120,7 +117,7 @@ class _QiblaPageState extends State<QiblaPage> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Are we facing Qibla or how many degrees off
+                    // difference
                     Text(
                       isFacingQibla
                           ? 'You are facing the Qibla!'
@@ -136,14 +133,12 @@ class _QiblaPageState extends State<QiblaPage> {
                     ),
                     const SizedBox(height: 30),
 
-                    // Rotate the compass by -heading so North needle stays up
+                    // Rotate by -heading so the north arrow remains up
                     Transform.rotate(
                       angle: -heading * (math.pi / 180),
                       child: CustomPaint(
                         size: const Size(300, 300),
-                        painter: QiblaCompassPainter(
-                          qiblaOffset: qibla,
-                        ),
+                        painter: QiblaCompassPainter(qiblaOffset: qibla),
                       ),
                     ),
                   ],
@@ -156,7 +151,10 @@ class _QiblaPageState extends State<QiblaPage> {
   Widget _buildReading(String label, double value) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 16, color: Colors.black87)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 16, color: Colors.black87),
+        ),
         const SizedBox(height: 4),
         Text(
           '${value.toStringAsFixed(1)}°',
@@ -171,7 +169,9 @@ class _QiblaPageState extends State<QiblaPage> {
   }
 }
 
-/// Subtle wave background (like PrayerTimesPage)
+// Below is the same wave + painter logic, unchanged. 
+// If you have it in a separate file, just keep it consistent.
+
 class AnimatedWaveBackground extends StatefulWidget {
   final Widget child;
   const AnimatedWaveBackground({Key? key, required this.child}) : super(key: key);
@@ -224,12 +224,10 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // White background
     canvas.drawColor(Colors.white, BlendMode.srcOver);
 
     final paint = Paint()..color = waveColor;
 
-    // Draw multiple wave layers
     _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
     _drawWave(canvas, size, paint, amplitude: 24, speed: 1.4, yOffset: 40);
     _drawWave(canvas, size, paint, amplitude: 16, speed: 2.0, yOffset: 70);
@@ -239,7 +237,6 @@ class _WavePainter extends CustomPainter {
       {required double amplitude, required double speed, required double yOffset}) {
     final path = Path();
     path.moveTo(0, size.height);
-
     for (double x = 0; x <= size.width; x++) {
       final y = amplitude *
               math.sin((x / size.width * 2 * math.pi * speed) +
@@ -249,7 +246,6 @@ class _WavePainter extends CustomPainter {
     }
     path.lineTo(size.width, size.height);
     path.close();
-
     canvas.drawPath(path, paint);
   }
 
@@ -257,15 +253,13 @@ class _WavePainter extends CustomPainter {
   bool shouldRepaint(_WavePainter oldDelegate) => true;
 }
 
-/// Same painter for Qibla Compass
 class QiblaCompassPainter extends CustomPainter {
-  final double qiblaOffset; // Qibla angle in degrees from North
+  final double qiblaOffset;
 
   QiblaCompassPainter({required this.qiblaOffset});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Placeholder colors
     const ringColor = Colors.deepPurple;
     const tickColor = Colors.deepPurpleAccent;
     const mainNeedleColor = Colors.deepPurple;
@@ -282,11 +276,11 @@ class QiblaCompassPainter extends CustomPainter {
       ..strokeWidth = 3;
     canvas.drawCircle(center, radius - 10, ringPaint);
 
-    // Tick marks (every 15°)
+    // Tick marks
     final tickPaint = Paint()
       ..color = tickColor
       ..strokeWidth = 2;
-    const tickCount = 24; // 360/15
+    const tickCount = 24;
     for (int i = 0; i < tickCount; i++) {
       final angle = (2 * math.pi / tickCount) * i;
       final outer = Offset(
@@ -306,7 +300,7 @@ class QiblaCompassPainter extends CustomPainter {
     _drawCardinal(canvas, center, radius, 'S', math.pi / 2, cardinalColor);
     _drawCardinal(canvas, center, radius, 'W', math.pi, cardinalColor);
 
-    // Main needle (device "north" pointer, pointing up)
+    // Main needle
     final needlePaint = Paint()
       ..color = mainNeedleColor
       ..style = PaintingStyle.fill;
@@ -333,21 +327,13 @@ class QiblaCompassPainter extends CustomPainter {
       ..lineTo(center.dx + 6, center.dy + 6)
       ..close();
     canvas.drawPath(qiblaPath, qiblaPaint);
-
     canvas.restore();
 
     // Center dot
     canvas.drawCircle(center, 5, Paint()..color = ringColor);
   }
 
-  void _drawCardinal(
-    Canvas canvas,
-    Offset center,
-    double r,
-    String dir,
-    double angle,
-    Color textColor,
-  ) {
+  void _drawCardinal(Canvas canvas, Offset center, double r, String dir, double angle, Color textColor) {
     final textPainter = TextPainter(
       text: TextSpan(
         text: dir,

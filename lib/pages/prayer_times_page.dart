@@ -53,7 +53,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _pageCenterIndex);
-    _initLocation();
+    _initLocation(); // Acquire location from our service
     _startCountdown();
     _randomTip = _tips[math.Random().nextInt(_tips.length)];
 
@@ -80,9 +80,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     super.dispose();
   }
 
-  /// Acquires the user’s location and attempts to determine a city name.
-  /// It checks several fields (locality, subLocality, subAdministrativeArea,
-  /// administrativeArea, country, name) before falling back to coordinates.
+  /// Acquires the user’s location (via LocationService) and attempts to determine city name.
   Future<void> _initLocation() async {
     final pos = await LocationService.determinePosition();
     if (pos != null) {
@@ -131,6 +129,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
       _preloadPrayerTimes();
       _updateNextPrayer();
     } else {
+      // If null, user denied or not available
       _cityName = 'Location unavailable';
       setState(() {});
     }
@@ -233,8 +232,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     });
   }
 
-  DateTime _previousPrayerTime(
-      Prayer prayer, Map<Prayer, DateTime> times) {
+  DateTime _previousPrayerTime(Prayer prayer, Map<Prayer, DateTime> times) {
     if (prayer == Prayer.fajr) {
       return times[Prayer.isha]!;
     }
@@ -330,9 +328,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
           Text(
             'Next Prayer: $_nextPrayerName',
             style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white),
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 6),
           Text(
@@ -376,8 +372,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         children: [
           Text(
             dateStr,
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _prayerRow('Fajr', pt.fajr, format, Icons.wb_twighlight),
@@ -387,19 +382,18 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
           _prayerRow('Maghrib', pt.maghrib, format, Icons.nightlight_round),
           _prayerRow('Isha', pt.isha, format, Icons.nightlight),
           const Divider(height: 32),
-          Text('Sunnah Times',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text('Sunnah Times', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          _prayerRow('Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
-          _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format, Icons.mode_night),
+          _prayerRow(
+              'Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
+          _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format,
+              Icons.mode_night),
           const SizedBox(height: 24),
-          Text('Tip of the Day:',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('Tip of the Day:', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
             _randomTip,
-            style: const TextStyle(
-                fontSize: 15, fontStyle: FontStyle.italic),
+            style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic),
             textAlign: TextAlign.center,
           ),
         ],
