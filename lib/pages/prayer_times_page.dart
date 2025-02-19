@@ -14,10 +14,10 @@ class PrayerTimesPage extends StatefulWidget {
   const PrayerTimesPage({Key? key}) : super(key: key);
 
   @override
-  State<PrayerTimesPage> createState() => _PrayerTimesPageState();
+  State<PrayerTimesPage> createState() => PrayerTimesPageState();
 }
 
-class _PrayerTimesPageState extends State<PrayerTimesPage> {
+class PrayerTimesPageState extends State<PrayerTimesPage> {
   Position? _currentPosition;
   String _cityName = '...';
 
@@ -31,7 +31,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   final int _pageCenterIndex = 7;
   int _currentIndex = 7;
 
-  // Next Prayer countdown
+  // Next Prayer countdown values
   Timer? _countdownTimer;
   Duration _timeUntilNext = Duration.zero;
   String _nextPrayerName = '-';
@@ -53,22 +53,17 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _pageCenterIndex);
-    _initLocation(); // Acquire location from our service
-    _startCountdown();
     _randomTip = _tips[math.Random().nextInt(_tips.length)];
 
-    // Listen for changes in prayer settings to update prayer times.
+    // We call _initLocation once here
+    _initLocation();
+    _startCountdown();
+
+    // Listen for changes in prayer settings to update prayer times
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<PrayerSettingsProvider>(context, listen: false)
           .addListener(_onPrayerSettingsChanged);
     });
-  }
-
-  void _onPrayerSettingsChanged() {
-    _cachedTimes.clear();
-    _cachedSunnah.clear();
-    _preloadPrayerTimes();
-    _updateNextPrayer();
   }
 
   @override
@@ -80,14 +75,27 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     super.dispose();
   }
 
-  /// Acquires the user’s location (via LocationService) and attempts to determine city name.
+  /// Called from main_nav_screen when user taps the "Prayers" tab
+  /// or from the refresh button in the AppBar
+  void refreshPage() {
+    _initLocation();
+  }
+
+  void _onPrayerSettingsChanged() {
+    _cachedTimes.clear();
+    _cachedSunnah.clear();
+    _preloadPrayerTimes();
+    _updateNextPrayer();
+  }
+
+  /// Acquires the user’s location, attempts to determine a city name.
   Future<void> _initLocation() async {
     final pos = await LocationService.determinePosition();
     if (!mounted) return;
 
     if (pos == null) {
-      // If null, user denied or location not available
       setState(() {
+        _currentPosition = null;
         _cityName = 'Location unavailable';
       });
       return;
@@ -98,20 +106,18 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
       final placemarks =
           await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
-        // Try to find a placemark with a non-empty locality.
+        // Try to find a meaningful place field
         final placemark = placemarks.firstWhere(
           (p) =>
               (p.locality != null && p.locality!.isNotEmpty) ||
               (p.subLocality != null && p.subLocality!.isNotEmpty) ||
               (p.subAdministrativeArea != null &&
                   p.subAdministrativeArea!.isNotEmpty) ||
-              (p.administrativeArea != null &&
-                  p.administrativeArea!.isNotEmpty) ||
+              (p.administrativeArea != null && p.administrativeArea!.isNotEmpty) ||
               (p.country != null && p.country!.isNotEmpty) ||
               (p.name != null && p.name!.isNotEmpty),
           orElse: () => placemarks.first,
         );
-        // Check multiple fields in order.
         String city = placemark.locality ??
             placemark.subLocality ??
             placemark.subAdministrativeArea ??
@@ -119,7 +125,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
             placemark.country ??
             placemark.name ??
             '';
-        // If still empty, fallback to coordinates.
+        // If still empty, fallback
         if (city.isEmpty) {
           city =
               '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
@@ -130,7 +136,6 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
             '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
       }
     } catch (e) {
-      // Fallback if reverse-geocoding fails.
       _cityName =
           '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
     }
@@ -142,7 +147,6 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
   /// Precompute PrayerTimes for each day in [-7..+7]
   void _preloadPrayerTimes() {
-    // If we STILL don't have position, do nothing
     if (_currentPosition == null) return;
     final provider =
         Provider.of<PrayerSettingsProvider>(context, listen: false);
@@ -154,15 +158,13 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
       final params = provider.calculationMethod.getParameters();
       params.madhab = provider.madhab;
-      // Example adjustments:
       params.adjustments.fajr = 2;
       params.adjustments.dhuhr = 2;
       params.adjustments.asr = 2;
       params.adjustments.maghrib = 2;
       params.adjustments.isha = 2;
 
-      final coords = Coordinates(
-          _currentPosition!.latitude, _currentPosition!.longitude);
+      final coords = Coordinates(_currentPosition!.latitude, _currentPosition!.longitude);
       final pt = PrayerTimes(coords, comps, params);
       final st = SunnahTimes(pt);
 
@@ -172,7 +174,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     setState(() {});
   }
 
-  /// Starts a periodic timer to update the next prayer countdown.
+  /// Starts a periodic timer to update the next prayer countdown
   void _startCountdown() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -180,7 +182,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     });
   }
 
-  /// Determines the next prayer time for the current day.
+  /// Determines the next prayer time for the current day
   void _updateNextPrayer() {
     final pt = _cachedTimes[0];
     if (pt == null) {
@@ -190,6 +192,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
       setState(() {});
       return;
     }
+
     final now = DateTime.now();
     final timesLocal = <Prayer, DateTime>{
       Prayer.fajr: pt.fajr.toLocal(),
@@ -221,6 +224,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     }
 
     if (nextTime == null) {
+      // If we didn't find next prayer, it must be tomorrow's Fajr
       final tomorrowFajr = pt.fajr.add(const Duration(days: 1)).toLocal();
       nextTime = tomorrowFajr;
       nextName = 'FAJR (TOMORROW)';
@@ -238,8 +242,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     });
   }
 
-  DateTime _previousPrayerTime(
-      Prayer prayer, Map<Prayer, DateTime> times) {
+  DateTime _previousPrayerTime(Prayer prayer, Map<Prayer, DateTime> times) {
     if (prayer == Prayer.fajr) {
       return times[Prayer.isha]!;
     }
@@ -254,67 +257,59 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     return times[order[idx - 1]]!;
   }
 
-  int _offsetFromIndex(int index) => (index - _pageCenterIndex);
-  int _indexFromOffset(int offset) => (offset + _pageCenterIndex);
+  int _offsetFromIndex(int index) => index - _pageCenterIndex;
 
   @override
   Widget build(BuildContext context) {
-    // If we never got location, show a friendly message
-    if (_currentPosition == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(_cityName), // e.g. "Location unavailable"
-        ),
-        body: const Center(
-          child: Text(
-            'Unable to retrieve location.\nPlease enable permissions.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-      );
-    }
-
-    // Otherwise, proceed with normal UI
     return Scaffold(
       appBar: AppBar(
         title: Text(_cityName),
-      ),
-      body: Column(
-        children: [
-          _buildNextPrayerCard(context),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _currentIndex = _pageCenterIndex;
-                });
-                _pageController.jumpToPage(_pageCenterIndex);
-              },
-              icon: const Icon(Icons.today),
-              label: const Text('Return to Today'),
-            ),
-          ),
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: (_daysRange * 2) + 1,
-              onPageChanged: (idx) {
-                setState(() => _currentIndex = idx);
-              },
-              itemBuilder: (context, idx) {
-                final offset = _offsetFromIndex(idx);
-                return _buildDayView(offset);
-              },
-            ),
+        actions: [
+          // Refresh icon in the AppBar
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: refreshPage,
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showRandomTip,
-        child: const Icon(Icons.lightbulb),
-      ),
+      body: _currentPosition == null
+          ? const Center(
+              child: Text(
+                'Location unavailable.\nPlease enable GPS/Permissions.',
+                textAlign: TextAlign.center,
+              ),
+            )
+          : Column(
+              children: [
+                _buildNextPrayerCard(context),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _currentIndex = _pageCenterIndex;
+                      });
+                      _pageController.jumpToPage(_pageCenterIndex);
+                    },
+                    icon: const Icon(Icons.today),
+                    label: const Text('Return to Today'),
+                  ),
+                ),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: (_daysRange * 2) + 1,
+                    onPageChanged: (idx) {
+                      setState(() => _currentIndex = idx);
+                    },
+                    itemBuilder: (context, idx) {
+                      final offset = _offsetFromIndex(idx);
+                      return _buildDayView(offset);
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -352,7 +347,10 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
           Text(
             'Next Prayer: $_nextPrayerName',
             style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -384,11 +382,9 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     final date = DateTime.now().add(Duration(days: offset));
     final dateStr = DateFormat('EEEE, MMM d, yyyy').format(date);
 
-    final provider =
-        Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final provider = Provider.of<PrayerSettingsProvider>(context, listen: false);
     final format = provider.use24hFormat ? 'HH:mm' : 'hh:mm a';
 
-    // Fixed content without additional scrolling.
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -408,10 +404,8 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
           const Divider(height: 32),
           Text('Sunnah Times', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          _prayerRow(
-              'Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
-          _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format,
-              Icons.mode_night),
+          _prayerRow('Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
+          _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format, Icons.mode_night),
           const SizedBox(height: 24),
           Text('Tip of the Day:', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
@@ -428,6 +422,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   Widget _prayerRow(String label, DateTime time, String format, IconData icon) {
     final localTime = time.toLocal();
     final display = DateFormat(format).format(localTime);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -440,15 +435,6 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
           Text(display),
         ],
       ),
-    );
-  }
-
-  void _showRandomTip() {
-    setState(() {
-      _randomTip = _tips[math.Random().nextInt(_tips.length)];
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('New Tip: $_randomTip')),
     );
   }
 }

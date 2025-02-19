@@ -5,76 +5,53 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
 
+import '../services/location_service.dart';
+
 class QiblaPage extends StatefulWidget {
   const QiblaPage({Key? key}) : super(key: key);
 
   @override
-  State<QiblaPage> createState() => _QiblaPageState();
+  State<QiblaPage> createState() => QiblaPageState();
 }
 
-class _QiblaPageState extends State<QiblaPage> {
-  bool _isLoading = false;
-  bool _locationDeniedForever = false;
-
+class QiblaPageState extends State<QiblaPage> {
   String _cityName = 'Locating...';
-  double? _deviceHeading;   // from FlutterCompass (0..360)
-  double? _qiblaDirection;  // from Adhan (0..360)
+  bool _isLoading = false;
+
+  double? _deviceHeading;  // from FlutterCompass
+  double? _qiblaDirection; // from Adhan
 
   @override
   void initState() {
     super.initState();
-    _getLocationAndQibla();
-    _listenCompassHeading();
+    refreshPage(); // attempt location
+    _listenHeading();
   }
 
-  /// Called on init and when user taps "Try Again"
-  Future<void> _getLocationAndQibla() async {
+  /// Called by the MainNavScreen or from the Refresh button
+  Future<void> refreshPage() async {
     setState(() {
       _isLoading = true;
       _cityName = 'Locating...';
       _qiblaDirection = null;
-      _locationDeniedForever = false;
     });
 
-    // 1) Check location services
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      setState(() {
-        _isLoading = false;
-        _cityName = 'Location services are OFF';
-      });
-      return;
-    }
+    final position = await LocationService.determinePosition();
+    if (!mounted) return;
 
-    // 2) Check permission
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever) {
+    if (position == null) {
       setState(() {
-        _locationDeniedForever = true;
-        _isLoading = false;
-        _cityName = 'Location denied forever';
-      });
-      return;
-    }
-    if (permission == LocationPermission.denied) {
-      // user just denied
-      setState(() {
-        _isLoading = false;
         _cityName = 'Location unavailable';
+        _isLoading = false;
       });
       return;
     }
 
-    // 3) We have permission. Get current position
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
       );
-      // Reverse-geocode
-      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
         String city = p.locality ??
@@ -83,28 +60,29 @@ class _QiblaPageState extends State<QiblaPage> {
             p.country ??
             '';
         if (city.isEmpty) {
-          city = '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
+          city =
+              '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
         }
         _cityName = city;
       } else {
-        _cityName = '${pos.latitude.toStringAsFixed(2)}, '
-                    '${pos.longitude.toStringAsFixed(2)}';
+        _cityName =
+            '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
       }
 
-      // Calculate Qibla direction
-      final coords = Coordinates(pos.latitude, pos.longitude);
+      // Qibla
+      final coords = Coordinates(position.latitude, position.longitude);
       final qibla = Qibla(coords);
       _qiblaDirection = qibla.direction;
-    } catch (e) {
-      _cityName = 'Failed to get location';
+    } catch (_) {
+      _cityName = 'Location error';
     }
 
     setState(() => _isLoading = false);
   }
 
-  /// Listen to device heading via FlutterCompass
-  void _listenCompassHeading() {
+  void _listenHeading() {
     FlutterCompass.events?.listen((event) {
+      if (!mounted) return;
       setState(() {
         _deviceHeading = event.heading ?? 0;
       });
@@ -129,23 +107,27 @@ class _QiblaPageState extends State<QiblaPage> {
       appBar: AppBar(
         title: Text(_cityName),
         actions: [
-          // Refresh button so user can attempt location again
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _getLocationAndQibla,
+            onPressed: refreshPage,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : (_qiblaDirection == null)
-              ? _buildErrorWidget()
+              ? const Center(
+                  child: Text(
+                    'Location unavailable.\nPlease enable GPS or permissions.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
               : AnimatedWaveBackground(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Heading & Qibla info
+                        // Heading & Qibla
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -154,7 +136,6 @@ class _QiblaPageState extends State<QiblaPage> {
                           ],
                         ),
                         const SizedBox(height: 8),
-
                         Text(
                           isFacingQibla
                               ? 'You are facing the Qibla!'
@@ -169,9 +150,7 @@ class _QiblaPageState extends State<QiblaPage> {
                           ),
                         ),
                         const SizedBox(height: 30),
-
-                        // The compass, rotated by -heading so that
-                        // "north" stays up in the painter's coordinates
+                        // Rotate the entire compass
                         Transform.rotate(
                           angle: -heading * (math.pi / 180),
                           child: CustomPaint(
@@ -205,54 +184,9 @@ class _QiblaPageState extends State<QiblaPage> {
       ],
     );
   }
-
-  /// If Qibla is null, we either have no permission or no location.
-  /// Show a friendly message and a button to open app settings if deniedForever.
-  Widget _buildErrorWidget() {
-    if (_locationDeniedForever) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Location denied forever.\nPlease open Settings to grant permission.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.settings),
-              label: const Text('Open App Settings'),
-              onPressed: () => Geolocator.openAppSettings(),
-            ),
-          ],
-        ),
-      );
-    } else {
-      // Normal denied or location off
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Unable to retrieve location for Qibla.\nCheck permissions or try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-              onPressed: _getLocationAndQibla,
-            ),
-          ],
-        ),
-      );
-    }
-  }
 }
 
-/// Animated wave background for a nice green effect
+/// The wave background
 class AnimatedWaveBackground extends StatefulWidget {
   final Widget child;
   const AnimatedWaveBackground({Key? key, required this.child}) : super(key: key);
@@ -328,7 +262,6 @@ class _WavePainter extends CustomPainter {
     }
     path.lineTo(size.width, size.height);
     path.close();
-
     canvas.drawPath(path, paint);
   }
 
@@ -336,9 +269,9 @@ class _WavePainter extends CustomPainter {
   bool shouldRepaint(_WavePainter oldDelegate) => true;
 }
 
-/// A simple Compass painter for Qibla
+/// QiblaCompassPainter draws the ring, cardinal directions, main "North" needle, etc.
 class QiblaCompassPainter extends CustomPainter {
-  final double qiblaOffset; // 0..360 from north
+  final double qiblaOffset;
 
   QiblaCompassPainter({required this.qiblaOffset});
 
@@ -353,7 +286,7 @@ class QiblaCompassPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // Draw outer ring
+    // Outer ring
     final ringPaint = Paint()
       ..color = ringColor
       ..style = PaintingStyle.stroke
@@ -364,7 +297,7 @@ class QiblaCompassPainter extends CustomPainter {
     final tickPaint = Paint()
       ..color = tickColor
       ..strokeWidth = 2;
-    const tickCount = 24;
+    const tickCount = 24; 
     for (int i = 0; i < tickCount; i++) {
       final angle = (2 * math.pi / tickCount) * i;
       final outer = Offset(
@@ -384,7 +317,7 @@ class QiblaCompassPainter extends CustomPainter {
     _drawCardinal(canvas, center, radius, 'S', math.pi / 2, cardinalColor);
     _drawCardinal(canvas, center, radius, 'W', math.pi, cardinalColor);
 
-    // Main needle (North pointer)
+    // Main needle (North)
     final needlePaint = Paint()..color = mainNeedleColor;
     final needlePath = Path()
       ..moveTo(center.dx, center.dy - (radius * 0.7))
@@ -414,21 +347,15 @@ class QiblaCompassPainter extends CustomPainter {
     canvas.drawCircle(center, 5, Paint()..color = ringColor);
   }
 
-  void _drawCardinal(
-    Canvas canvas,
-    Offset center,
-    double r,
-    String dir,
-    double angle,
-    Color textColor,
-  ) {
+  void _drawCardinal(Canvas canvas, Offset center, double r, String dir,
+      double angle, Color color) {
     final textPainter = TextPainter(
       text: TextSpan(
         text: dir,
         style: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: textColor,
+          color: color,
         ),
       ),
       textDirection: TextDirection.ltr,

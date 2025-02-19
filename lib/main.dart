@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
       theme: themeNotifier.lightTheme,
       darkTheme: themeNotifier.darkTheme,
       themeMode: themeNotifier.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
-      home: const SplashScreen(),
+      home: const MainNavScreen(),
     );
   }
 }
