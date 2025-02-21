@@ -1,8 +1,19 @@
+import 'dart:io' show Platform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:permission_handler/permission_handler.dart';
+
+/// Headless callback to handle notification actions when the app is terminated.
+/// This must be a top-level function and annotated for entry point.
+@pragma('vm:entry-point')
+Future<void> notificationTapBackground(NotificationResponse notificationResponse) async {
+  // Handle the background notification tap if needed.
+  print('Headless notification tapped: ${notificationResponse.payload}');
+}
 
 class NotificationService {
+  // Singleton instance for ease of use
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
@@ -11,49 +22,82 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    // Configure platform-specific initialization settings.
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
-        );
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
-
-    // Initialize the plugin.
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    // Initialize time zone database.
+    // Initialize timezone data for scheduling notifications
     tz.initializeTimeZones();
 
-    // Request permissions for iOS.
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    // iOS initialization settings
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings();
 
-    // Request notifications permission for Android (API 33+).
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    // Android initialization settings
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // Combined initialization settings
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    // Initialize the plugin with support for background callbacks
+    await flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        print('Notification tapped with payload: ${response.payload}');
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
+    print("Notification plugin initialized");
+
+    // Request permissions on both platforms
+    await _requestPermissions();
+
+    // Create notification channel for Android
+    await _createNotificationChannel();
   }
 
-  /// Schedules a notification at [scheduledDate].  
-  /// If [repeatDaily] is true (default) then the notification is set to recur daily.
+  Future<void> _requestPermissions() async {
+    if (Platform.isIOS) {
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      print("iOS permissions requested");
+    } else if (Platform.isAndroid) {
+      // For Android 13+ using permission_handler to request POST_NOTIFICATIONS permission
+      var status = await Permission.notification.status;
+      if (!status.isGranted) {
+        await Permission.notification.request();
+        print("Android notification permission requested");
+      } else {
+        print("Android notification permission already granted");
+      }
+      // Note: SCHEDULE_EXACT_ALARM must be declared in the manifest.
+      // On some devices, the user must manually enable exact alarms in settings.
+    }
+  }
+
+  Future<void> _createNotificationChannel() async {
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'prayer_channel', // Channel ID must match the one used in scheduleNotification
+      'Prayer Notifications',
+      description: 'This channel is used for prayer time notifications.',
+      importance: Importance.max,
+    );
+    final androidImplementation = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await androidImplementation?.createNotificationChannel(channel);
+    print("Notification channel created");
+  }
+
+  /// Schedules a notification at the given [scheduledDate].
   Future<void> scheduleNotification({
     required int id,
     required String title,
     required String body,
     required DateTime scheduledDate,
-    bool repeatDaily = true,
   }) async {
+    print("Scheduling notification (id: $id) at $scheduledDate");
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       title,
@@ -61,35 +105,37 @@ class NotificationService {
       tz.TZDateTime.from(scheduledDate, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'prayer_channel',
+          'prayer_channel', // Must match the channel ID created above
           'Prayer Notifications',
-          channelDescription: 'Notifications for prayer times',
+          channelDescription: 'This channel is used for prayer time notifications.',
           importance: Importance.max,
           priority: Priority.high,
         ),
+        iOS: DarwinNotificationDetails(),
       ),
-      // In v18 the androidAllowWhileIdle flag has been replaced by androidScheduleMode.
-      androidScheduleMode: AndroidScheduleMode.exact,
+      // Use exact scheduling even while idle (works with Doze mode)
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      // Only use matchDateTimeComponents if you want a daily recurring notification.
-      matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
     );
+    print("Notification scheduled successfully");
   }
 
-  /// Helper method to send a test notification after 5 seconds.
-  Future<void> sendTestNotification() async {
-    final testTime = DateTime.now().add(const Duration(seconds: 5));
-    await scheduleNotification(
-      id: 999,
-      title: 'Test Prayer Notification',
-      body: 'It is time for test prayer!',
-      scheduledDate: testTime,
-      repeatDaily: false, // test should trigger only once
-    );
-  }
-
+  /// Cancels all scheduled notifications.
   Future<void> cancelAllNotifications() async {
     await flutterLocalNotificationsPlugin.cancelAll();
+    print("All notifications cancelled");
+  }
+
+  /// Sends a test notification scheduled for 5 seconds from now.
+  Future<void> sendTestNotification() async {
+    final DateTime scheduledTime = DateTime.now().add(const Duration(seconds: 5));
+    print("Sending test notification for $scheduledTime");
+    await scheduleNotification(
+      id: 999,
+      title: 'Test Notification',
+      body: 'This is a test notification.',
+      scheduledDate: scheduledTime,
+    );
   }
 }

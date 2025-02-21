@@ -47,6 +47,8 @@ dependencies:
   percent_indicator: ^4.2.2
   confetti: ^0.7.0
   flutter_compass: ^0.8.1
+  permission_handler: ^10.2.0
+
 
   sensors_plus: ^6.1.1
   quran: ^1.0.0
