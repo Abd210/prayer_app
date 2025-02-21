@@ -35,10 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   provider: ^6.0.3
-  http: ^0.13.5
   geolocator: ^9.0.2
   flutter_local_notifications: ^18.0.1
-  timezone: ^0.9.0
+  timezone: ^0.10.0
   adhan: ^2.0.0+1
   intl: ^0.18.0
   adhkar: ^0.0.1
@@ -52,6 +51,7 @@ dependencies:
   sensors_plus: ^6.1.1
   quran: ^1.0.0
   share_plus: ^10.1.4
+
 
   
 dev_dependencies:

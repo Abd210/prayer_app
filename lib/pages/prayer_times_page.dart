@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -11,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
+import '../services/notification_service.dart'; // New import
 
 /// Animated wave background for matching the Qibla style
 class AnimatedWaveBackground extends StatefulWidget {
@@ -65,9 +65,7 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Paint background white first
     canvas.drawColor(Colors.white, BlendMode.srcOver);
-
     final paint = Paint()..color = waveColor;
     _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
     _drawWave(canvas, size, paint, amplitude: 24, speed: 1.4, yOffset: 40);
@@ -84,7 +82,6 @@ class _WavePainter extends CustomPainter {
   }) {
     final path = Path();
     path.moveTo(0, size.height);
-
     for (double x = 0; x <= size.width; x++) {
       final y = amplitude *
               math.sin((x / size.width * 2 * math.pi * speed) +
@@ -108,7 +105,6 @@ class PrayerTimesPage extends StatefulWidget {
   State<PrayerTimesPage> createState() => PrayerTimesPageState();
 }
 
-/// We'll detect app lifecycle changes (auto-refresh on resume) + wave background
 class PrayerTimesPageState extends State<PrayerTimesPage>
     with WidgetsBindingObserver {
   Position? _currentPosition;
@@ -141,7 +137,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // observe app lifecycle
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _pageCenterIndex);
     _randomTip = _tips[math.Random().nextInt(_tips.length)];
 
@@ -164,17 +160,14 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     super.dispose();
   }
 
-  /// Called automatically when app is resumed from background
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      // Auto-refresh
       refreshPage();
     }
   }
 
-  /// Called by MainNavScreen or from the refresh icon
   void refreshPage() {
     _initLocation();
   }
@@ -189,7 +182,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   Future<void> _initLocation() async {
     final pos = await LocationService.determinePosition();
     if (!mounted) return;
-
     if (pos == null) {
       setState(() {
         _currentPosition = null;
@@ -197,7 +189,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       });
       return;
     }
-
     _currentPosition = pos;
     try {
       final placemarks =
@@ -234,10 +225,10 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       _cityName =
           '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
     }
-
     setState(() {});
     _preloadPrayerTimes();
     _updateNextPrayer();
+    _scheduleTodayNotifications();
   }
 
   void _preloadPrayerTimes() {
@@ -245,11 +236,9 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     final provider =
         Provider.of<PrayerSettingsProvider>(context, listen: false);
     final now = DateTime.now();
-
     for (int offset = -_daysRange; offset <= _daysRange; offset++) {
       final date = now.add(Duration(days: offset));
       final comps = DateComponents.from(date);
-
       final params = provider.calculationMethod.getParameters();
       params.madhab = provider.madhab;
       params.adjustments.fajr = 2;
@@ -257,14 +246,12 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       params.adjustments.asr = 2;
       params.adjustments.maghrib = 2;
       params.adjustments.isha = 2;
-
       final coords = Coordinates(
         _currentPosition!.latitude,
         _currentPosition!.longitude,
       );
       final pt = PrayerTimes(coords, comps, params);
       final st = SunnahTimes(pt);
-
       _cachedTimes[offset] = pt;
       _cachedSunnah[offset] = st;
     }
@@ -300,7 +287,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     DateTime? nextTime;
     String? nextName;
     DateTime? currentPrayerTime;
-
     for (final prayer in [
       Prayer.fajr,
       Prayer.dhuhr,
@@ -316,18 +302,15 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         break;
       }
     }
-
     if (nextTime == null) {
       final tomorrowFajr = pt.fajr.add(const Duration(days: 1)).toLocal();
       nextTime = tomorrowFajr;
       nextName = 'FAJR (TOMORROW)';
       currentPrayerTime = timesLocal[Prayer.isha];
     }
-
     final untilNext = nextTime!.difference(now);
     final totalRange = nextTime.difference(currentPrayerTime!);
     final progress = 1.0 - (untilNext.inSeconds / totalRange.inSeconds);
-
     setState(() {
       _timeUntilNext = untilNext;
       _nextPrayerName = nextName!;
@@ -346,25 +329,63 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
 
   int _offsetFromIndex(int index) => index - _pageCenterIndex;
 
+  Future<void> _scheduleTodayNotifications() async {
+    final pt = _cachedTimes[0];
+    if (pt == null) return;
+    final now = DateTime.now();
+    await NotificationService().cancelAllNotifications();
+    final prayerTimes = {
+      Prayer.fajr: pt.fajr.toLocal(),
+      Prayer.dhuhr: pt.dhuhr.toLocal(),
+      Prayer.asr: pt.asr.toLocal(),
+      Prayer.maghrib: pt.maghrib.toLocal(),
+      Prayer.isha: pt.isha.toLocal(),
+    };
+    Map<Prayer, int> prayerIds = {
+      Prayer.fajr: 0,
+      Prayer.dhuhr: 1,
+      Prayer.asr: 2,
+      Prayer.maghrib: 3,
+      Prayer.isha: 4,
+    };
+
+    for (var entry in prayerTimes.entries) {
+      if (entry.value.isAfter(now)) {
+        String prayerName = entry.key.name.toUpperCase();
+        await NotificationService().scheduleNotification(
+          id: prayerIds[entry.key]!,
+          title: 'Prayer Time',
+          body: "It's time for $prayerName prayer in $_cityName",
+          scheduledDate: entry.value,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // We wrap the entire content in AnimatedWaveBackground
     return AnimatedWaveBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           title: Text(_cityName),
           actions: [
+            // New Test Notification button:
+            IconButton(
+              icon: const Icon(Icons.notifications_active),
+              tooltip: 'Test Notification',
+              onPressed: () async {
+                await NotificationService().sendTestNotification();
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: refreshPage,
             ),
           ],
         ),
-        // Add the floating action button with a "statistics" icon
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            // Navigate to the placeholder statistics page
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const StatisticsPage()),
@@ -374,7 +395,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
           child: const Icon(Icons.insert_chart_outlined),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
         body: _currentPosition == null
             ? const Center(
                 child: Text(
@@ -482,14 +502,11 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     if (pt == null || st == null) {
       return const Center(child: CircularProgressIndicator());
     }
-
     final date = DateTime.now().add(Duration(days: offset));
     final dateStr = DateFormat('EEEE, MMM d, yyyy').format(date);
-
     final provider =
         Provider.of<PrayerSettingsProvider>(context, listen: false);
     final format = provider.use24hFormat ? 'HH:mm' : 'hh:mm a';
-
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
