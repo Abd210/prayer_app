@@ -51,7 +51,7 @@
   <key>NSLocationWhenInUseUsageDescription</key>
   <string>We need your location to show accurate prayer times and Qibla direction.</string>
 
-  <!-- If you want background location, also add: -->
+  <!-- Background location permission (if required) -->
   <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
   <string>We need your location in the background for continuous location-based services.</string>
 </dict>
