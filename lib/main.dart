@@ -30,6 +30,7 @@ class MyApp extends StatelessWidget {
       title: 'Advanced Islamic App',
       debugShowCheckedModeBanner: false,
       theme: themeNotifier.lightTheme,
+      
       darkTheme: themeNotifier.darkTheme,
       themeMode: themeNotifier.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
       home: const MainNavScreen(), // your main navigation screen
