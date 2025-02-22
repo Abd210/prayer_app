@@ -3,11 +3,11 @@
     <!-- Required permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- For posting notifications (Android 13+) -->
+    <!-- Permission to post notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- To receive boot events for re‑scheduling notifications -->
+    <!-- To receive boot completed events (for re‑scheduling notifications) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <!-- Required for scheduling exact alarms on Android 12+ -->
+    <!-- Permission to schedule exact alarms (required on Android 12+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 
     <application

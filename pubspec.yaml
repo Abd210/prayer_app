@@ -48,6 +48,7 @@ dependencies:
   confetti: ^0.7.0
   flutter_compass: ^0.8.1
   permission_handler: ^10.2.0
+  
 
 
   sensors_plus: ^6.1.1

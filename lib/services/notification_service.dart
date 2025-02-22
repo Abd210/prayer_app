@@ -18,20 +18,17 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
     // Initialize timezone data for scheduling notifications
     tz.initializeTimeZones();
 
     // iOS initialization settings
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings();
+    const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings();
 
     // Android initialization settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // Combined initialization settings
     final InitializationSettings initializationSettings = InitializationSettings(
@@ -44,6 +41,7 @@ class NotificationService {
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         print('Notification tapped with payload: ${response.payload}');
+        // Navigate to the desired screen
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
