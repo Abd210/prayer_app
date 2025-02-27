@@ -240,7 +240,8 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawColor(Colors.white, BlendMode.srcOver);
+    // Removed the forced white background line so it can adapt to dark/light mode:
+    // canvas.drawColor(Colors.white, BlendMode.srcOver);
 
     final paint = Paint()..color = waveColor;
     _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
@@ -248,8 +249,14 @@ class _WavePainter extends CustomPainter {
     _drawWave(canvas, size, paint, amplitude: 16, speed: 2.0, yOffset: 70);
   }
 
-  void _drawWave(Canvas canvas, Size size, Paint paint,
-      {required double amplitude, required double speed, required double yOffset}) {
+  void _drawWave(
+    Canvas canvas,
+    Size size,
+    Paint paint, {
+    required double amplitude,
+    required double speed,
+    required double yOffset,
+  }) {
     final path = Path();
     path.moveTo(0, size.height);
 
@@ -347,8 +354,14 @@ class QiblaCompassPainter extends CustomPainter {
     canvas.drawCircle(center, 5, Paint()..color = ringColor);
   }
 
-  void _drawCardinal(Canvas canvas, Offset center, double r, String dir,
-      double angle, Color color) {
+  void _drawCardinal(
+    Canvas canvas,
+    Offset center,
+    double r,
+    String dir,
+    double angle,
+    Color color,
+  ) {
     final textPainter = TextPainter(
       text: TextSpan(
         text: dir,

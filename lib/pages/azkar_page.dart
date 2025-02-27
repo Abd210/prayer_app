@@ -10,11 +10,11 @@ import 'package:prayer/models/azakdata.dart';
 
 ///
 /// ──────────────────────────────────────────────────────────────────────────────
-///  0) Wave Background (Green Themed)
+///  0) Wave Background (Now Themed)
 /// ──────────────────────────────────────────────────────────────────────────────
 ///
 /// This widget animates one or more "waves" across the screen using
-/// a custom painter. The wave is tinted green to match your theming.
+/// a custom painter. Instead of forcing green, we now adapt to the theme.
 ///
 class AnimatedWaveBackground extends StatefulWidget {
   final Widget child;
@@ -48,11 +48,16 @@ class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AnimatedBuilder(
       animation: _waveController,
       builder: (context, child) {
         return CustomPaint(
-          painter: _GreenWavePainter(_waveController.value),
+          painter: _GreenWavePainter(
+            waveValue: _waveController.value,
+            // Use the theme’s primary color at ~15% opacity:
+            waveColor: theme.colorScheme.primary.withOpacity(0.15),
+          ),
           child: child,
         );
       },
@@ -63,12 +68,17 @@ class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
 
 class _GreenWavePainter extends CustomPainter {
   final double waveValue;
-  _GreenWavePainter(this.waveValue);
+  final Color waveColor;
+
+  _GreenWavePainter({
+    required this.waveValue,
+    required this.waveColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.greenAccent.withOpacity(0.15)
+      ..color = waveColor
       ..style = PaintingStyle.fill;
 
     // We will draw 2 or 3 waves at different phases or amplitudes
@@ -144,15 +154,14 @@ class _AzkarAndTasbihAdvancedPageState
         appBar: AppBar(
           title: const Text('Azkar & Tasbih'),
           bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white, // Ensure text of selected tab is white
-          unselectedLabelColor: Colors.white, // Ensure text of unselected tab is white
-          tabs: const [
-            Tab(icon: Icon(Icons.menu_book), text: 'Azkar'),
-            Tab(icon: Icon(Icons.fingerprint), text: 'Tasbih'),
-          ],
-        ),
-
+            controller: _tabController,
+            labelColor: Colors.white, // ensure text of selected tab is white
+            unselectedLabelColor: Colors.white, // ensure text of unselected tab is white
+            tabs: const [
+              Tab(icon: Icon(Icons.menu_book), text: 'Azkar'),
+              Tab(icon: Icon(Icons.fingerprint), text: 'Tasbih'),
+            ],
+          ),
         ),
         body: AnimatedWaveBackground(
           child: TabBarView(
@@ -349,7 +358,7 @@ class _AzkarCard extends StatelessWidget {
           padding: const EdgeInsets.all(24.0),
           child: Row(
             children: [
-                Icon(icon, color: Colors.white, size: 36),
+              Icon(icon, color: Colors.white, size: 36),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -547,10 +556,15 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
                 ElevatedButton.icon(
                   onPressed: _resetAll,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Reset All',style: TextStyle(color: Colors.white),),
+                  label: const Text(
+                    'Reset All',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 12),
+                      horizontal: 30,
+                      vertical: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -600,8 +614,7 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
               percent: fraction,
               center: Text(
                 '$count',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               progressColor: theme.colorScheme.secondary,
               backgroundColor: theme.colorScheme.secondary.withOpacity(0.2),
@@ -634,8 +647,7 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
 ///  - Each dhikr has a circular indicator that animates from the last percent.
 ///  - Confetti on the final item, then a completion dialog.
 ///  - Copy-to-clipboard button for the Arabic text.
-///  - **Now**: Less empty space in the card, plus a small "Reminder" message at the bottom.
-///  - **Display Style Toggle**: Switch between "Compact" vs "Expanded".
+///  - Display Style Toggle: Switch between "Compact" vs "Expanded".
 ///
 class AzkarReadingPage extends StatefulWidget {
   final String title;
@@ -692,8 +704,8 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
       if (currentCounts[index] < widget.items[index].repeat) {
         currentCounts[index]++;
       }
-      // if finished this dhikr
       if (currentCounts[index] == widget.items[index].repeat) {
+        // If finished this dhikr
         if (index < widget.items.length - 1) {
           _pageController.nextPage(
             duration: const Duration(milliseconds: 400),
@@ -731,9 +743,7 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
   void _copyAzkarText(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Azkar text copied to clipboard!'),
-      ),
+      const SnackBar(content: Text('Azkar text copied to clipboard!')),
     );
   }
 
@@ -747,9 +757,7 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
-              setState(() {
-                _compactView = (value == 'Compact');
-              });
+              setState(() => _compactView = (value == 'Compact'));
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
@@ -767,7 +775,7 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
       ),
       body: Stack(
         children: [
-          // Wave background
+          // Wave background (adapted to theme)
           AnimatedWaveBackground(
             child: Column(
               children: [
@@ -779,7 +787,8 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                   animateFromLastPercent: true,
                   percent: overallFraction,
                   progressColor: theme.colorScheme.primary,
-                  backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                  backgroundColor:
+                      theme.colorScheme.primary.withOpacity(0.2),
                   padding: EdgeInsets.zero,
                 ),
                 // main content: PageView
@@ -828,12 +837,13 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                                           style: TextStyle(
                                             fontSize: _compactView ? 18 : 20,
                                             height: 1.6,
-                                            color: theme.colorScheme.onSurface,
+                                            color:
+                                                theme.colorScheme.onSurface,
                                           ),
                                         ),
                                       ),
                                       const SizedBox(height: 12),
-                                      // We put your "translation" or short note below
+                                      // translation or short note
                                       Text(
                                         item.translation,
                                         textAlign: TextAlign.justify,
@@ -860,20 +870,24 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        progressColor: theme.colorScheme.primary,
-                                        backgroundColor: theme.colorScheme.primary
-                                            .withOpacity(0.2),
-                                        circularStrokeCap: CircularStrokeCap.round,
+                                        progressColor:
+                                            theme.colorScheme.primary,
+                                        backgroundColor:
+                                            theme.colorScheme.primary
+                                                .withOpacity(0.2),
+                                        circularStrokeCap:
+                                            CircularStrokeCap.round,
                                       ),
                                       const SizedBox(height: 10),
                                       // Copy to clipboard button
                                       TextButton.icon(
-                                        onPressed: () => _copyAzkarText(item.arabic),
+                                        onPressed: () =>
+                                            _copyAzkarText(item.arabic),
                                         icon: const Icon(Icons.copy),
                                         label: const Text('Copy'),
                                       ),
                                       const SizedBox(height: 8),
-                                      // A small reminder at the bottom
+                                      // A small reminder
                                       const Text(
                                         'Tap Anywhere to Count',
                                         style: TextStyle(
@@ -914,7 +928,12 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
               blastDirectionality: BlastDirectionality.explosive,
               shouldLoop: false,
               numberOfParticles: 25,
-              colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange],
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange
+              ],
             ),
           ),
         ],
