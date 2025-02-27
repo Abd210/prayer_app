@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+// NEW for caching location in JSON form (though we only store lat/lng/city name):
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,6 +10,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
 import 'package:prayer/pages/statistcs.dart';
 import 'package:provider/provider.dart';
+// For storing and retrieving from local storage:
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
@@ -65,7 +70,6 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawColor(Colors.white, BlendMode.srcOver);
     final paint = Paint()..color = waveColor;
     _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
     _drawWave(canvas, size, paint, amplitude: 24, speed: 1.4, yOffset: 40);
@@ -134,6 +138,11 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   ];
   String _randomTip = '';
 
+  // NEW weekly cache keys (7 days in ms):
+  static const _weeklyLocationKey = 'WEEKLY_LOCATION_DATA';
+  static const _weeklyLocationTsKey = 'WEEKLY_LOCATION_TIMESTAMP';
+  static const _oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
   @override
   void initState() {
     super.initState();
@@ -141,8 +150,12 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     _pageController = PageController(initialPage: _pageCenterIndex);
     _randomTip = _tips[math.Random().nextInt(_tips.length)];
 
-    _initLocation();
-    _startCountdown();
+    // NEW: Attempt to load location from 1-week cache (without reordering your code)
+    _tryLoadWeeklyLocation();
+
+    // You asked not to remove or reorder these lines:
+    _initLocation();    // We'll skip inside it if we already loaded from cache
+    _startCountdown();  // countdown always starts
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<PrayerSettingsProvider>(context, listen: false)
@@ -169,6 +182,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   }
 
   void refreshPage() {
+    // Keep same name & order
     _initLocation();
   }
 
@@ -179,7 +193,79 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     _updateNextPrayer();
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  NEW: Attempt to load location+city from a 7-day-old cache
+  // ─────────────────────────────────────────────────────────────────────────────
+  Future<void> _tryLoadWeeklyLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastTs = prefs.getInt(_weeklyLocationTsKey) ?? 0;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - lastTs > _oneWeekMs) {
+      return; // older than 7 days => do nothing
+    }
+
+    final raw = prefs.getString(_weeklyLocationKey);
+    if (raw == null || raw.isEmpty) return;
+
+    try {
+      final Map<String, dynamic> data = json.decode(raw);
+      final lat = data['lat'] as double?;
+      final lng = data['lng'] as double?;
+      final city = data['city'] as String?;
+
+      if (lat == null || lng == null || city == null) return;
+
+      // If we got valid info, set them
+      _cityName = city;
+      _currentPosition = Position(
+        latitude: lat,
+        longitude: lng,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+
+      // Next time `_initLocation()` is called, we skip fetching new location
+      // Then we do normal preload to get prayer times
+      setState(() {});
+      _preloadPrayerTimes();
+      _updateNextPrayer();
+      _scheduleTodayNotifications();
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  NEW: Save location & city after we do a successful fetch
+  // ─────────────────────────────────────────────────────────────────────────────
+  Future<void> _saveWeeklyLocation() async {
+    if (_currentPosition == null) return;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+    final data = <String, dynamic>{
+      'lat': _currentPosition!.latitude,
+      'lng': _currentPosition!.longitude,
+      'city': _cityName,
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_weeklyLocationKey, json.encode(data));
+    await prefs.setInt(_weeklyLocationTsKey, nowMs);
+  }
+
+  // We keep the same name & order. We just skip if `_currentPosition` was set by cache:
   Future<void> _initLocation() async {
+    if (_currentPosition != null) {
+      // Means we already loaded from weekly cache => skip new location
+      return;
+    }
+
     final pos = await LocationService.determinePosition();
     if (!mounted) return;
     if (pos == null) {
@@ -229,8 +315,12 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     _preloadPrayerTimes();
     _updateNextPrayer();
     _scheduleTodayNotifications();
+
+    // NEW: store lat,lng,city for next 7 days
+    _saveWeeklyLocation();
   }
 
+  // We do NOT rename or reorder this function. Kept exactly the same:
   void _preloadPrayerTimes() {
     if (_currentPosition == null) return;
     final provider =
@@ -258,6 +348,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     setState(() {});
   }
 
+  // We do NOT rename or reorder this function either:
   void _startCountdown() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -409,13 +500,14 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        setState(() {
-                          _currentIndex = _pageCenterIndex;
-                        });
+                        setState(() => _currentIndex = _pageCenterIndex);
                         _pageController.jumpToPage(_pageCenterIndex);
                       },
                       icon: const Icon(Icons.today),
-                      label: const Text('Return to Today'),
+                      label: const Text(
+                        'Return to Today',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                   Expanded(
@@ -526,7 +618,8 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
           const Divider(height: 32),
           Text('Sunnah Times', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          _prayerRow('Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
+          _prayerRow(
+              'Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
           _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format, Icons.mode_night),
           const SizedBox(height: 24),
           Text('Tip of the Day:', style: Theme.of(context).textTheme.titleMedium),

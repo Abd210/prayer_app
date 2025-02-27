@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'services/notification_service.dart';
 import 'pages/splash_screen.dart'; // or your starting page
 import 'package:provider/provider.dart';
+
+// Import your providers:
 import 'services/prayer_settings_provider.dart';
 import 'theme/theme_notifier.dart';
 
@@ -13,6 +15,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        // Create your ThemeNotifier (it will load theme from SharedPreferences automatically):
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => PrayerSettingsProvider()),
       ],
@@ -29,10 +32,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Advanced Islamic App',
       debugShowCheckedModeBanner: false,
+      // Use the theme from ThemeNotifier:
       theme: themeNotifier.lightTheme,
       darkTheme: themeNotifier.darkTheme,
       themeMode: themeNotifier.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
-      home: const MainNavScreen(), // your main navigation screen
+      // Replace `MainNavScreen()` with your actual main/home widget:
+      home:  MainNavScreen(),
     );
   }
 }
