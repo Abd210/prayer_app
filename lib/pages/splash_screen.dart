@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:prayer/pages/azkar_page/azkar_and_tasbih_advanced_page.dart';
 import 'package:provider/provider.dart';
 
 // Your pages:
