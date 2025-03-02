@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 // Your pages:
 import 'prayer_times_page.dart';
-import 'azkar_page.dart';
 import 'qibla_page.dart';
 import 'QuranPage.dart';
 import 'settings_page.dart';
