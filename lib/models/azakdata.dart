@@ -461,7 +461,7 @@ final List<DhikrItem> morningAdhkar = [
     translation:
         '“None has the right to be worshiped except Allah alone, without '
         'partner. His is the dominion, and to Him is all praise...”',
-    repeat: 1,
+    repeat: 3,
   ),
   DhikrItem(
     arabic:
@@ -720,7 +720,7 @@ final List<DhikrItem> eveningAdhkar = [
     translation:
         '“None has the right to be worshiped except Allah alone, without partner. '
         'His is the dominion, and to Him belongs the praise...”',
-    repeat: 1,
+    repeat: 3,
   ),
   DhikrItem(
     arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ '
