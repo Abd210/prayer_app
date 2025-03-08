@@ -136,6 +136,12 @@ class QiblaPageState extends State<QiblaPage> {
                           ],
                         ),
                         const SizedBox(height: 8),
+                        Text("be aware that the compass may not be accurate if you're near magnetic fields",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.redAccent,
+                          ),
+                        ),
                         Text(
                           isFacingQibla
                               ? 'You are facing the Qibla!'
