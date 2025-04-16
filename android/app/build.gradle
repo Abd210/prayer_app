@@ -7,19 +7,19 @@ plugins {
 
 android {
     namespace "com.example.prayer"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
         // Enable desugaring for Java language APIs (required for scheduled notifications)
         coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
         // Set the JVM target version as a string.
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 
     defaultConfig {
@@ -30,6 +30,7 @@ android {
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
+        multiDexEnabled true
     }
 
     buildTypes {
@@ -46,5 +47,6 @@ flutter {
 
 dependencies {
     // Required for desugaring support:
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+
 }
