@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:confetti/confetti.dart';
-import 'package:prayer/models/azakdata.dart';
-import 'package:prayer/widgets/animated_wave_background.dart'; // Example data import
 
-///
-/// TASBIH ADVANCED PAGE (with sub counters)
-///
+import 'package:prayer/models/azakdata.dart';
+import 'package:prayer/widgets/animated_wave_background.dart';
+import 'package:prayer/utils/azkar_storage.dart';   // <-- NEW
+
+/* ────────────────────────────────────────────────────────────────────────────
+   TASBIH ADVANCED PAGE
+   ───────────────────────────────────────────────────────────────────────── */
+
 class TasbihAdvancedPage extends StatefulWidget {
   const TasbihAdvancedPage({Key? key}) : super(key: key);
 
@@ -19,54 +22,40 @@ class TasbihAdvancedPage extends StatefulWidget {
 class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
   // Main “global” tasbih
   int globalCount = 0;
-  final int globalTarget = 99; // for example
+  final int globalTarget = 99;
 
-  // Additional counters
+  // Sub counters
   int countSubhanallah = 0;
   int countAlhamdulillah = 0;
   int countAllahuAkbar = 0;
-  final int eachTarget = 33; // typical tasbih counts
+  final int eachTarget = 33;
 
-  void _incrementGlobal() {
-    setState(() {
-      if (globalCount < globalTarget) {
-        globalCount++;
-      }
-    });
-  }
+  void _incrementGlobal() =>
+      setState(() => globalCount = (globalCount < globalTarget)
+          ? globalCount + 1
+          : globalCount);
 
-  void _incrementSubhanallah() {
-    setState(() {
-      if (countSubhanallah < eachTarget) {
-        countSubhanallah++;
-      }
-    });
-  }
+  void _incrementSubhanallah() =>
+      setState(() => countSubhanallah = (countSubhanallah < eachTarget)
+          ? countSubhanallah + 1
+          : countSubhanallah);
 
-  void _incrementAlhamdulillah() {
-    setState(() {
-      if (countAlhamdulillah < eachTarget) {
-        countAlhamdulillah++;
-      }
-    });
-  }
+  void _incrementAlhamdulillah() =>
+      setState(() => countAlhamdulillah = (countAlhamdulillah < eachTarget)
+          ? countAlhamdulillah + 1
+          : countAlhamdulillah);
 
-  void _incrementAllahuAkbar() {
-    setState(() {
-      if (countAllahuAkbar < eachTarget) {
-        countAllahuAkbar++;
-      }
-    });
-  }
+  void _incrementAllahuAkbar() =>
+      setState(() => countAllahuAkbar = (countAllahuAkbar < eachTarget)
+          ? countAllahuAkbar + 1
+          : countAllahuAkbar);
 
-  void _resetAll() {
-    setState(() {
-      globalCount = 0;
-      countSubhanallah = 0;
-      countAlhamdulillah = 0;
-      countAllahuAkbar = 0;
-    });
-  }
+  void _resetAll() => setState(() {
+        globalCount = 0;
+        countSubhanallah = 0;
+        countAlhamdulillah = 0;
+        countAllahuAkbar = 0;
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -80,113 +69,93 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
       appBar: AppBar(title: const Text('Tasbih Advanced')),
       body: AnimatedWaveBackground(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              children: [
-                //
-                // ────────── Global Tasbih ──────────
-                //
-                const Text(
-                  'Global Tasbih',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: _incrementGlobal,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: double.infinity,
-                    height: 270,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: CircularPercentIndicator(
-                        radius: 80.0,
-                        lineWidth: 12.0,
-                        animation: true,
-                        animationDuration: 300,
-                        animateFromLastPercent: true,
-                        percent: mainFraction,
-                        center: Text(
-                          '$globalCount / $globalTarget',
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const Text('Global Tasbih',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: _incrementGlobal,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: double.infinity,
+                  height: 270,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: CircularPercentIndicator(
+                      radius: 80,
+                      lineWidth: 12,
+                      animation: true,
+                      animationDuration: 300,
+                      animateFromLastPercent: true,
+                      percent: mainFraction,
+                      center: Text('$globalCount / $globalTarget',
                           style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        progressColor: theme.colorScheme.primary,
-                        backgroundColor:
-                            theme.colorScheme.primary.withOpacity(0.2),
-                        circularStrokeCap: CircularStrokeCap.round,
-                      ),
+                              fontSize: 26, fontWeight: FontWeight.bold)),
+                      progressColor: theme.colorScheme.primary,
+                      backgroundColor:
+                          theme.colorScheme.primary.withOpacity(0.2),
+                      circularStrokeCap: CircularStrokeCap.round,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                //
-                // ────────── Sub Counters ──────────
-                //
-                const Text(
-                  'Sub-Counters',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildSmallTasbihBox(
-                      context,
-                      title: 'SubḥānAllāh',
-                      count: countSubhanallah,
-                      target: eachTarget,
-                      fraction: subFraction1,
-                      onTap: _incrementSubhanallah,
-                    ),
-                    _buildSmallTasbihBox(
-                      context,
-                      title: 'Al-ḥamdu lillāh',
-                      count: countAlhamdulillah,
-                      target: eachTarget,
-                      fraction: subFraction2,
-                      onTap: _incrementAlhamdulillah,
-                    ),
-                    _buildSmallTasbihBox(
-                      context,
-                      title: 'Allāhu Akbar',
-                      count: countAllahuAkbar,
-                      target: eachTarget,
-                      fraction: subFraction3,
-                      onTap: _incrementAllahuAkbar,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
-                ElevatedButton.icon(
-                  onPressed: _resetAll,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text(
-                    'Reset All',
-                    style: TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 20),
+              const Text('Sub‑Counters',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSmallTasbihBox(
+                    context,
+                    title: 'SubḥānAllāh',
+                    count: countSubhanallah,
+                    target: eachTarget,
+                    fraction: subFraction1,
+                    onTap: _incrementSubhanallah,
                   ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 12,
-                    ),
+                  _buildSmallTasbihBox(
+                    context,
+                    title: 'Al‑ḥamdu lillāh',
+                    count: countAlhamdulillah,
+                    target: eachTarget,
+                    fraction: subFraction2,
+                    onTap: _incrementAlhamdulillah,
                   ),
+                  _buildSmallTasbihBox(
+                    context,
+                    title: 'Allāhu Akbar',
+                    count: countAllahuAkbar,
+                    target: eachTarget,
+                    fraction: subFraction3,
+                    onTap: _incrementAllahuAkbar,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton.icon(
+                onPressed: _resetAll,
+                icon: const Icon(Icons.refresh),
+                label:
+                    const Text('Reset All', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Tap the main box for a global count.\n'
-                  'Tap any sub box for specific counts (33 each).',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Tap the main box for a global count.\n'
+                'Tap any sub box for specific counts (33 each).',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ],
           ),
         ),
       ),
@@ -212,35 +181,29 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
           color: theme.colorScheme.primary.withOpacity(0.07),
           borderRadius: BorderRadius.circular(12),
         ),
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(8),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularPercentIndicator(
-              radius: 32.0,
-              lineWidth: 6.0,
+              radius: 32,
+              lineWidth: 6,
               animation: true,
               animationDuration: 300,
               animateFromLastPercent: true,
               percent: fraction,
-              center: Text(
-                '$count',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              center: Text('$count',
+                  style:
+                      const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               progressColor: theme.colorScheme.secondary,
               backgroundColor: theme.colorScheme.secondary.withOpacity(0.2),
               circularStrokeCap: CircularStrokeCap.round,
             ),
             const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
-            ),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600, height: 1.3)),
           ],
         ),
       ),
@@ -248,9 +211,10 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
   }
 }
 
-///
-/// AZKAR READING PAGE
-///
+/* ────────────────────────────────────────────────────────────────────────────
+   AZKAR READING PAGE  (Persists progress + daily stats)
+   ───────────────────────────────────────────────────────────────────────── */
+
 class AzkarReadingPage extends StatefulWidget {
   final String title;
   final List<DhikrItem> items;
@@ -270,7 +234,9 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
   late List<int> currentCounts;
   late ConfettiController _confettiCtrl;
 
-  bool _compactView = false; // toggles card spacing / style
+  bool _compactView = false;
+
+  /* ──────────  INIT & DISPOSE  ────────── */
 
   @override
   void initState() {
@@ -278,6 +244,8 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
     _pageController = PageController();
     currentCounts = List.filled(widget.items.length, 0);
     _confettiCtrl = ConfettiController(duration: const Duration(seconds: 2));
+
+    _restoreProgress(); // <── NEW
   }
 
   @override
@@ -287,41 +255,60 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
     super.dispose();
   }
 
-  int get completedItemsCount {
-    int c = 0;
-    for (int i = 0; i < widget.items.length; i++) {
-      if (currentCounts[i] == widget.items[i].repeat) {
-        c++;
-      }
-    }
-    return c;
+  /* ──────────  Progress Helpers  ────────── */
+
+  Future<void> _restoreProgress() async {
+    final saved = await AzkarStorage.loadProgress(widget.title);
+    if (saved == null || !mounted) return;
+
+    setState(() => currentCounts = saved.$2);
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _pageController.jumpToPage(saved.$1));
   }
 
-  double get overallFraction {
-    return (completedItemsCount / widget.items.length).clamp(0.0, 1.0);
+  Future<void> _persistProgress() async {
+    await AzkarStorage.saveProgress(
+      title: widget.title,
+      pageIndex: _pageController.page?.round() ?? 0,
+      counts: currentCounts,
+    );
   }
+
+  /* ──────────  Derived Getters  ────────── */
+
+  int get completedItemsCount => currentCounts
+      .asMap()
+      .entries
+      .where((e) => e.value == widget.items[e.key].repeat)
+      .length;
+
+  double get overallFraction =>
+      (completedItemsCount / widget.items.length).clamp(0.0, 1.0);
+
+  /* ──────────  Logic  ────────── */
 
   void _incrementCount(int index) {
     setState(() {
       if (currentCounts[index] < widget.items[index].repeat) {
         currentCounts[index]++;
       }
-      if (currentCounts[index] == widget.items[index].repeat) {
-        // If finished this dhikr
-        if (index < widget.items.length - 1) {
-          _pageController.nextPage(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-          );
-        } else {
-          // last one
-          _confettiCtrl.play();
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            _showCompletionDialog();
-          });
-        }
-      }
     });
+
+    _persistProgress(); // <── NEW
+
+    if (currentCounts[index] == widget.items[index].repeat) {
+      if (index < widget.items.length - 1) {
+        _pageController.nextPage(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
+      } else {
+        // finished entire list
+        _confettiCtrl.play();
+        AzkarStorage.markFinished(widget.title);  // <── NEW
+        AzkarStorage.clearProgress(widget.title); // <── NEW
+        Future.delayed(const Duration(milliseconds: 1500), _showCompletionDialog);
+      }
+    }
   }
 
   void _showCompletionDialog() async {
@@ -332,22 +319,23 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
         content: const Text('You have finished all azkār in this category.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK')),
         ],
       ),
     );
     Navigator.pop(context);
   }
 
-  // Copy to clipboard logic
+  /* ──────────  Copy helper  ────────── */
+
   void _copyAzkarText(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Azkar text copied to clipboard!')),
-    );
+        const SnackBar(content: Text('Azkar text copied to clipboard!')));
   }
+
+  /* ──────────  BUILD  ────────── */
 
   @override
   Widget build(BuildContext context) {
@@ -358,32 +346,23 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
         title: Text(widget.title),
         actions: [
           PopupMenuButton<String>(
-            onSelected: (value) {
-              setState(() => _compactView = (value == 'Compact'));
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'Compact',
-                child: Text('Compact View'),
-              ),
-              const PopupMenuItem(
-                value: 'Expanded',
-                child: Text('Expanded View'),
-              ),
-            ],
             icon: const Icon(Icons.view_list_outlined),
-          ),
+            onSelected: (value) =>
+                setState(() => _compactView = (value == 'Compact')),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'Compact', child: Text('Compact View')),
+              PopupMenuItem(value: 'Expanded', child: Text('Expanded View')),
+            ],
+          )
         ],
       ),
       body: Stack(
         children: [
-          // Wave background (adapted to theme)
           AnimatedWaveBackground(
             child: Column(
               children: [
-                // Top linear progress
                 LinearPercentIndicator(
-                  lineHeight: 6.0,
+                  lineHeight: 6,
                   animation: true,
                   animationDuration: 300,
                   animateFromLastPercent: true,
@@ -392,13 +371,13 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                   backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
                   padding: EdgeInsets.zero,
                 ),
-                // Main content: PageView
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
                     physics: const BouncingScrollPhysics(),
+                    onPageChanged: (_) => _persistProgress(), // <── NEW
                     itemCount: widget.items.length,
-                    itemBuilder: (context, index) {
+                    itemBuilder: (_, index) {
                       final item = widget.items[index];
                       final count = currentCounts[index];
                       final required = item.repeat;
@@ -408,13 +387,13 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                         onTap: () => _incrementCount(index),
                         behavior: HitTestBehavior.opaque,
                         child: Container(
-                          padding: EdgeInsets.all(_compactView ? 8.0 : 16.0),
+                          padding:
+                              EdgeInsets.all(_compactView ? 8.0 : 16.0),
                           child: Center(
                             child: Card(
                               elevation: 8,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                                  borderRadius: BorderRadius.circular(20)),
                               child: Container(
                                 width: double.infinity,
                                 padding: EdgeInsets.symmetric(
@@ -429,36 +408,41 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Arabic text
+                                      // Arabic
                                       Directionality(
                                         textDirection: TextDirection.rtl,
                                         child: Text(
                                           item.arabic,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            fontSize: _compactView ? 18 : 20,
+                                            fontSize:
+                                                _compactView ? 18 : 20,
                                             height: 1.6,
-                                            color: theme.colorScheme.onSurface,
+                                            color:
+                                                theme.colorScheme.onSurface,
                                           ),
                                         ),
                                       ),
                                       const SizedBox(height: 12),
-                                      // translation or short note
+                                      // Translation
                                       Text(
                                         item.translation,
                                         textAlign: TextAlign.justify,
                                         style: TextStyle(
-                                          fontSize: _compactView ? 14 : 15,
+                                          fontSize:
+                                              _compactView ? 14 : 15,
                                           fontStyle: FontStyle.italic,
                                           color: Colors.black54,
                                           height: 1.4,
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      // circular progress
+                                      // progress ring
                                       CircularPercentIndicator(
-                                        radius: _compactView ? 50 : 60,
-                                        lineWidth: _compactView ? 6 : 8,
+                                        radius:
+                                            _compactView ? 50 : 60,
+                                        lineWidth:
+                                            _compactView ? 6 : 8,
                                         animation: true,
                                         animationDuration: 300,
                                         animateFromLastPercent: true,
@@ -466,40 +450,41 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                                         center: Text(
                                           '$count / $required',
                                           style: TextStyle(
-                                            fontSize: _compactView ? 16 : 18,
+                                            fontSize: _compactView
+                                                ? 16
+                                                : 18,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        progressColor: theme.colorScheme.primary,
-                                        backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                                        circularStrokeCap: CircularStrokeCap.round,
+                                        progressColor:
+                                            theme.colorScheme.primary,
+                                        backgroundColor: theme
+                                            .colorScheme.primary
+                                            .withOpacity(0.2),
+                                        circularStrokeCap:
+                                            CircularStrokeCap.round,
                                       ),
                                       const SizedBox(height: 10),
-                                      // Copy to clipboard button
                                       TextButton.icon(
-                                        onPressed: () => _copyAzkarText(item.arabic),
+                                        onPressed: () =>
+                                            _copyAzkarText(item.arabic),
                                         icon: const Icon(Icons.copy),
                                         label: const Text('Copy'),
                                       ),
                                       const SizedBox(height: 8),
-                                      // A small reminder
-                                      const Text(
-                                        'Tap Anywhere to Count',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
+                                      const Text('Tap Anywhere to Count',
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey)),
                                       const SizedBox(height: 10),
                                       if (!_compactView)
                                         const Text(
-                                          'Remembrance of Allah is the greatest (Qur\'an 29:45).',
+                                          'Remembrance of Allah is the greatest (Qur\'an 29:45).',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            fontSize: 14,
-                                            fontStyle: FontStyle.italic,
-                                            color: Colors.grey,
-                                          ),
+                                              fontSize: 14,
+                                              fontStyle: FontStyle.italic,
+                                              color: Colors.grey),
                                         ),
                                     ],
                                   ),
@@ -521,8 +506,8 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
             child: ConfettiWidget(
               confettiController: _confettiCtrl,
               blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
               numberOfParticles: 25,
+              shouldLoop: false,
               colors: const [
                 Colors.green,
                 Colors.blue,

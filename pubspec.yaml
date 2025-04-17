@@ -54,6 +54,8 @@ dependencies:
   sensors_plus: ^6.1.1
   quran: ^1.0.0
   share_plus: ^10.1.4
+  fl_chart: ^0.66.0
+
 
 
   

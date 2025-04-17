@@ -487,12 +487,21 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: _currentPosition == null
-            ? const Center(
-                child: Text(
-                  'Location unavailable.\nPlease enable GPS/Permissions.',
-                  textAlign: TextAlign.center,
-                ),
-              )
+                ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            IconButton(
+              iconSize: 32,
+              tooltip: 'Reload',
+              onPressed: refreshPage,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+      )
             : Column(
                 children: [
                   _buildNextPrayerCard(context),
