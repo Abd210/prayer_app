@@ -18,7 +18,7 @@ class QiblaPageState extends State<QiblaPage> {
   String _cityName = 'Locating...';
   bool _isLoading = false;
 
-  double? _deviceHeading;  // from FlutterCompass
+  double? _deviceHeading; // from FlutterCompass
   double? _qiblaDirection; // from Adhan
 
   @override
@@ -102,12 +102,14 @@ class QiblaPageState extends State<QiblaPage> {
     final isFacingQibla = diff <= 5;
     final heading = _deviceHeading ?? 0.0;
     final qibla = _qiblaDirection ?? 0.0;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_cityName),
         actions: [
           IconButton(
+            tooltip: 'Refresh location & heading',
             icon: const Icon(Icons.refresh),
             onPressed: refreshPage,
           ),
@@ -131,38 +133,38 @@ class QiblaPageState extends State<QiblaPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildReading('Heading', heading),
-                            _buildReading('Qibla', qibla),
+                            _buildReading('Heading', heading, theme),
+                            _buildReading('Qibla', qibla, theme),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text("be aware that the compass may not be accurate if you're near magnetic fields",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.redAccent,
-                          ),
-                        ), 
-                        const SizedBox(height: 3),
-                        Text("the orange needle points to the Qibla",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.redAccent,
-                          ),
+                        const SizedBox(height: 12),
+
+                        // Warning banners
+                        const WarningBanner(
+                          message:
+                              "Compass accuracy may drop if you're near magnetic fields or metal objects.",
                         ),
+                        const WarningBanner(
+                          message:
+                              "The orange needle points toward the Qibla direction.",
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Facing / difference text
                         Text(
                           isFacingQibla
                               ? 'You are facing the Qibla!'
-                              : 'Diff: ${diff.toStringAsFixed(1)}° from Qibla',
-                          style: TextStyle(
-                            fontSize: 18,
+                              : 'Δ  ${diff.toStringAsFixed(1)}°  from Qibla',
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight:
-                                isFacingQibla ? FontWeight.bold : FontWeight.normal,
+                                isFacingQibla ? FontWeight.bold : FontWeight.w500,
                             color: isFacingQibla
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.black87,
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
                           ),
                         ),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 28),
+
                         // Rotate the entire compass
                         Transform.rotate(
                           angle: -heading * (math.pi / 180),
@@ -178,23 +180,61 @@ class QiblaPageState extends State<QiblaPage> {
     );
   }
 
-  Widget _buildReading(String label, double value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 16, color: Colors.black87),
+  Widget _buildReading(String label, double value, ThemeData theme) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 6),
+            Text(
+              '${value.toStringAsFixed(1)}°',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          '${value.toStringAsFixed(1)}°',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+      ),
+    );
+  }
+}
+
+/// Lightweight warning banner used in the UI
+class WarningBanner extends StatelessWidget {
+  final String message;
+  const WarningBanner({Key? key, required this.message}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded,
+              size: 18, color: scheme.error),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.error, fontWeight: FontWeight.w600),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -253,9 +293,6 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Removed the forced white background line so it can adapt to dark/light mode:
-    // canvas.drawColor(Colors.white, BlendMode.srcOver);
-
     final paint = Paint()..color = waveColor;
     _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
     _drawWave(canvas, size, paint, amplitude: 24, speed: 1.4, yOffset: 40);
@@ -317,7 +354,7 @@ class QiblaCompassPainter extends CustomPainter {
     final tickPaint = Paint()
       ..color = tickColor
       ..strokeWidth = 2;
-    const tickCount = 24; 
+    const tickCount = 24;
     for (int i = 0; i < tickCount; i++) {
       final angle = (2 * math.pi / tickCount) * i;
       final outer = Offset(
