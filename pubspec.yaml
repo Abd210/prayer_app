@@ -48,6 +48,8 @@ dependencies:
   confetti: ^0.7.0
   flutter_compass: ^0.8.1
   flutter_colorpicker: ^1.0.3
+  flutter_launcher_icons: ^0.13.1
+
 
   sensors_plus: ^6.1.1
   quran: ^1.0.0
@@ -106,3 +108,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
