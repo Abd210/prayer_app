@@ -1,52 +1,65 @@
+// lib/services/notification_service.dart
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+/// Singleton wrapper around `flutter_local_notifications`.
 class NotificationService {
+  NotificationService._internal();
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
-  NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+  FlutterLocalNotificationsPlugin();
 
+  /* ────────────────────────────────────────────────────────────────
+     INITIALISATION
+     ──────────────────────────────────────────────────────────────── */
   Future<void> init() async {
-    // Configure platform-specific initialization settings.
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
-        );
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
+    // ---------- platform‑specific settings ----------
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
     );
+    const initSettings =
+    InitializationSettings(android: androidInit, iOS: iosInit);
 
-    // Initialize the plugin.
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    // Initialize time zone database.
+    await _plugin.initialize(initSettings);
     tz.initializeTimeZones();
 
-    // Request permissions for iOS.
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    /* ── Permissions ── */
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
 
-    // Request notifications permission for Android (API 33+).
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    // Notification permission (POST_NOTIFICATIONS) – Android 13+
+    await android?.requestNotificationsPermission();
+
+    // Exact‑alarm permission – Android 12+
+    if (android != null &&
+        !(await android.canScheduleExactNotifications() ?? false)) {
+      final granted = await android.requestExactAlarmsPermission();
+
+      if (granted != true) {
+        // TODO: optionally import `permission_handler` and call
+        //       `openAppSettings()` so the user can enable “Alarms & reminders”.
+        //
+        // For now we just log – your UI can show a snackbar/dialog.
+        // debugPrint('Exact‑alarm permission still denied');
+      }
+    }
+
+    // iOS runtime permissions
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
-  /// Schedules a notification at [scheduledDate].  
-  /// If [repeatDaily] is true (default) then the notification is set to recur daily.
+  /* ────────────────────────────────────────────────────────────────
+     PUBLIC API
+     ──────────────────────────────────────────────────────────────── */
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -54,7 +67,7 @@ class NotificationService {
     required DateTime scheduledDate,
     bool repeatDaily = true,
   }) async {
-    await flutterLocalNotificationsPlugin.zonedSchedule(
+    await _plugin.zonedSchedule(
       id,
       title,
       body,
@@ -68,28 +81,24 @@ class NotificationService {
           priority: Priority.high,
         ),
       ),
-      // In v18 the androidAllowWhileIdle flag has been replaced by androidScheduleMode.
       androidScheduleMode: AndroidScheduleMode.exact,
       uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      // Only use matchDateTimeComponents if you want a daily recurring notification.
-      matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
+      UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents:
+      repeatDaily ? DateTimeComponents.time : null,
     );
   }
 
-  /// Helper method to send a test notification after 5 seconds.
+  /// One‑off test after five seconds.
   Future<void> sendTestNotification() async {
-    final testTime = DateTime.now().add(const Duration(seconds: 5));
     await scheduleNotification(
       id: 999,
       title: 'Test Prayer Notification',
-      body: 'It is time for test prayer!',
-      scheduledDate: testTime,
-      repeatDaily: false, // test should trigger only once
+      body: 'It is time for the test prayer!',
+      scheduledDate: DateTime.now().add(const Duration(seconds: 5)),
+      repeatDaily: false,
     );
   }
 
-  Future<void> cancelAllNotifications() async {
-    await flutterLocalNotificationsPlugin.cancelAll();
-  }
+  Future<void> cancelAllNotifications() async => _plugin.cancelAll();
 }
