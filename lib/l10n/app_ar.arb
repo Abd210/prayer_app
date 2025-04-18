@@ -1,0 +1,155 @@
+{
+  "@@locale": "ar",
+
+  "appTitle": "تطبيق إسلامي متقدم",
+  "settings": "الإعدادات",
+  "appearance": "المظهر",
+  "language": "اللغة",
+  "aboutApp": "حول التطبيق",
+
+  "enableDarkMode": "تفعيل الوضع الداكن",
+  "enableNotifications": "تفعيل الإشعارات",
+  "enableDailyHadith": "تفعيل حديث اليوم",
+  "highAccuracyCalculation": "دقة حساب عالية",
+
+  "calculationMethod": "طريقة الحساب",
+  "madhab": "المذهب",
+  "use24HourFormat": "استخدام صيغة 24 ساعة",
+  "customTheme": "نسق مخصّص",
+  "languageEnglish": "الإنجليزية",
+  "languageArabic": "العربية",
+
+  "pick": "اختيار",
+  "cancel": "إلغاء",
+  "save": "حفظ",
+  "createCustomTheme": "أنشئ نسقك المخصَّص",
+  "chooseLightTheme": "اختر نسقًا فاتحًا",
+  "currentTheme": "الحالي:",
+  "primary": "أساسي",
+  "secondary": "ثانوي",
+  "background": "خلفية",
+  "surface": "سطح",
+
+  "nextPrayerLabel": "الصلاة التالية: {prayerName}",
+  "@nextPrayerLabel": { "placeholders": { "prayerName": {} } },
+
+  "startsIn": "تبدأ خلال {countdown}",
+  "@startsIn": { "placeholders": { "countdown": {} } },
+
+  "returnToToday": "العودة إلى اليوم",
+  "testNotification": "اختبار الإشعار",
+  "reload": "إعادة تحميل",
+  "statisticsTooltip": "الإحصائيات",
+
+  "sunnahTimes": "أوقات السنن",
+  "tipOfDay": "نصيحة اليوم:",
+
+  "prayerTimeTitle": "وقت الصلاة",
+  "prayerNotificationBody": "حان وقت صلاة {prayerName} في {city}",
+  "@prayerNotificationBody": {
+    "placeholders": { "prayerName": {}, "city": {} }
+  },
+
+  "locationUnavailable": "الموقع غير متاح",
+
+  "prayerFajr": "الفجر",
+  "prayerSunrise": "الشروق",
+  "prayerDhuhr": "الظهر",
+  "prayerAsr": "العصر",
+  "prayerMaghrib": "المغرب",
+  "prayerIsha": "العشاء",
+
+  "middleNight": "منتصف الليل",
+  "lastThirdNight": "ثلث الليل الأخير",
+
+  "tipEstablishPrayer": "﴿أَقِمِ الصَّلَاةَ وَآتِ الزَّكَاةَ﴾",
+  "tipBetterThanSleep": "«الصلاة خيرٌ من النوم»",
+  "tipCallUponMe": "﴿ادْعُونِي أَسْتَجِبْ لَكُمْ﴾",
+  "tipReflectQuran": "تدبّر القرآن يوميًّا لنموٍّ روحيٍّ أكبر.",
+  "tipKhushu": "اسعَ إلى الخشوع في الصلاة.",
+  "tipSharePrayer": "شارك مواعيد الصلاة مع أصدقائك.",
+  "tipSunnah": "داوم على صلوات السنن لتحصل على مزيد من الأجر.",
+  "navPrayers": "الصلوات",
+  "navAzkar":"أذكار",
+  "navQibla":"قِبلة",
+  "navQuran":"القرآن",
+  "navSettings":"الإعدادات",
+
+
+  "locating":"جارٍ التحديد…",
+  "refreshCompass":"تحديث الموقع والاتجاه",
+  "headingLabel":"اتجاه الجهاز",
+  "qiblaLabel":"القبلة",
+  "facingQibla":"أنت متجه نحو القبلة!",
+  "deltaFromQibla":"Δ {degrees}° عن القبلة",
+  "compassWarnInterference":"قد تقل دقة البوصلة إن وُجدت أجسام معدنية أو مجالات مغناطيسية قريبة.",
+  "compassWarnNeedle":"الإبرة البرتقالية تشير إلى اتجاه القبلة.",
+
+  "azkarTasbihTitle": "أذكار وتسبيح",
+  "freeTasbih": "تسبيح حرّ",
+
+
+  "statsTitle": "إحصاءات الأذكار",
+  "statsNoData": "لا توجد إحصاءات بعد.\nأكمِل أي قائمة أذكار ثم عد لاحقًا!",
+  "tabDaily": "يومي",
+  "tabWeekly": "أسبوعي",
+  "tabMonthly": "شهري",
+  "kpiDays": "الأيام",
+  "kpiStreak": "السلسلة",
+  "kpiBest": "الأفضل",
+  "week": "الأسبوع",
+  "weekShort": "أ",
+  "needMoreData": "تحتاج إلى مزيد من البيانات لرسم اتجاه {period}",
+  "@needMoreData": { "placeholders": { "period": {} } },
+  "percentCompleted": "اكتمل{percent}٪",
+  "@percentCompleted": { "placeholders": { "percent": {} } },
+  "periodDaily": "يومي",
+  "periodWeekly": "أسبوعي",
+  "periodMonthly": "شهري",
+
+
+  "tasbihTitle": "تسبيح متقدم",
+  "globalTasbih": "التسبيح العام",
+  "subCounters": "عدادات فرعية",
+  "resetAll": "إعادة الضبط",
+  "tasbihHint": "انقر على المربع الرئيسي للعد العام.\nوانقر أي مربع فرعي للعد المحدد (٣٣ مرة).",
+
+  "compactView": "عرض مضغوط",
+  "expandedView": "عرض موسَّع",
+
+  "azkarCopy": "نسخ",
+  "azkarCopied": "تم نسخ نص الذكر!",
+  "tapAnywhere": "اضغط في أي مكان للعد",
+  "azkarReminder": "﴿وَلَذِكْرُ اللَّهِ أَكْبَرُ﴾ (العنكبوت ٤٥)",
+
+  "azkarCompletedTitle": "اكتمل {title}!",
+  "@azkarCompletedTitle": { "placeholders": { "title": {} } },
+  "azkarCompletedContent": "لقد أنهيت جميع الأذكار في هذا القسم.",
+  "ok": "حسناً",
+
+  "azkarTasbihTitle": "الأذكار والتسبيح",
+  "azkarTab": "أذكار",
+  "tasbihTab": "تسبيح",
+  "surahLabel": "سورة {surahNumber}",
+  "surahName": "{number}. {name}",
+
+    "quranTitle": "القرآن",
+  "searchHint": "ابحث عن آية",
+  "searchNoResults": "لم يتم العثور على آيات لـ \"{query}\"",
+  "@searchNoResults": { "placeholders": { "query": {} } },
+  "searchPrompt": "اكتب كلمة أو عبارة للبحث في القرآن",
+  "searchSuggestions": "بحث عن آيات تحتوي: {query}",
+  "@searchSuggestions": { "placeholders": { "query": {} } },
+  "searchResultTitle": "سورة {surah}: آية {verse}",
+  "@searchResultTitle": { "placeholders": { "surah": {}, "verse": {} } },
+  "juzLabel": "جزء {number}",
+  "@juzLabel": { "placeholders": { "number": {} } },
+  "juzSurahHeader": "السور في الجزء {juz}",
+  "@juzSurahHeader": { "placeholders": { "juz": {} } },
+  "versesLabel": "{count} آية",
+  "@versesLabel": { "placeholders": { "count": {} } },
+  "playEntireSurah": "تشغيل السورة كاملة",
+  "surahLabel": "Surah {surahNumber}",
+  "surahName": "{number}. {name}"
+
+}

@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import 'services/notification_service.dart';
-import 'pages/splash_screen.dart'; // or your starting page
 import 'package:provider/provider.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-// Import your providers:
+import 'services/notification_service.dart';
+import 'services/language_provider.dart';
 import 'services/prayer_settings_provider.dart';
 import 'theme/theme_notifier.dart';
+import 'pages/splash_screen.dart';   // or MainNavScreen()
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize notifications
   await NotificationService().init();
 
   runApp(
     MultiProvider(
       providers: [
-        // Create your ThemeNotifier (it will load theme from SharedPreferences automatically):
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),   // ← NEW
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => PrayerSettingsProvider()),
       ],
@@ -26,18 +26,22 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
+    final lang = Provider.of<LanguageProvider>(context);
+
     return MaterialApp(
       title: 'Advanced Islamic App',
       debugShowCheckedModeBanner: false,
-      // Use the theme from ThemeNotifier:
+      locale: lang.locale,                                   // ← NEW
+      localizationsDelegates: AppLocalizations.localizationsDelegates,   // ← NEW
+      supportedLocales: AppLocalizations.supportedLocales,              // ← NEW
       theme: themeNotifier.lightTheme,
       darkTheme: themeNotifier.darkTheme,
       themeMode: themeNotifier.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
-      // Replace `MainNavScreen()` with your actual main/home widget:
-      home:  MainNavScreen(),
+      home: MainNavScreen(),
     );
   }
 }
