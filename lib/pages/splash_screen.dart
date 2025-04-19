@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:prayer/pages/azkar_page/azkar_and_tasbih_advanced_page.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 // Your pages:
 import 'prayer_times_page.dart';
@@ -48,6 +49,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n  = AppLocalizations.of(context)!;
 
     return Scaffold(
       body: IndexedStack(
@@ -82,26 +84,26 @@ class _MainNavScreenState extends State<MainNavScreen> {
               _qiblaKey.currentState?.refreshPage();
             }
           },
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.access_time),
-              label: 'Prayers',
+              icon: const Icon(Icons.access_time),
+              label: l10n.navPrayers,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.book),
-              label: 'Azkār',
+              icon: const Icon(Icons.book),
+              label: l10n.navAzkar,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.compass_calibration),
-              label: 'Qibla',
+              icon: const Icon(Icons.compass_calibration),
+              label: l10n.navQibla,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.menu_book),
-              label: 'Quran',
+              icon: const Icon(Icons.menu_book),
+              label: l10n.navQuran,
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: 'Settings',
+              icon: const Icon(Icons.settings),
+              label: l10n.navSettings,
             ),
           ],
         ),

@@ -1,8 +1,11 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:quran/quran.dart' as quran;
 import 'dart:math' as math;
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:quran/quran.dart' as quran;
+
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class QuranPage extends StatefulWidget {
   const QuranPage({Key? key}) : super(key: key);
@@ -12,46 +15,43 @@ class QuranPage extends StatefulWidget {
 }
 
 class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
-  // Loading and playback states
-  late bool isLoading;
-  late bool isPlaying;
-  late bool isPlayingWholeSurah;
+  /* ───────────────  STATE  ─────────────── */
 
-  // Audio
-  late AudioPlayer audioPlayer;
-  late StreamSubscription onCompleteSubscription;
+  // loading / playback
+  late bool isLoading, isPlaying, isPlayingWholeSurah;
 
-  // Data
-  late List<int> allJuzNumbers;
-  late List<int> allSurahNumbers;
+  // audio
+  late final AudioPlayer audioPlayer;
+  late final StreamSubscription onCompleteSubscription;
+
+  // data
+  late final List<int> allJuzNumbers;
+  late final List<int> allSurahNumbers;
   late List<int> surahsInJuz;
-  late int currentJuz;
-  late int currentSurah;
-  late int selectedJuzForSurahs;
-  late int selectedSurahForVerses;
-  late int verseCountForSurah;
-  late int totalSurahCount;
+  late int currentJuz, currentSurah, verseCountForSurah, totalSurahCount;
+  late int selectedJuzForSurahs, selectedSurahForVerses;
 
-  // Navigation booleans
-  late bool showSurahSelection;
-  late bool showVerseSelection;
+  // navigation flags
+  late bool showSurahSelection, showVerseSelection;
 
-  // Queue for entire surah playback
+  // full‑surah queue
   late int currentVerseInQueue;
   late bool entireSurahQueued;
 
-  // Scroll controllers
-  late ScrollController scrollControllerJuz;
-  late ScrollController scrollControllerSurah;
-  late ScrollController scrollControllerVerse;
+  // scroll
+  late final ScrollController scrollControllerJuz,
+      scrollControllerSurah,
+      scrollControllerVerse;
 
-  // Animation controllers
-  late AnimationController juzAnimationController;
-  late AnimationController surahAnimationController;
-  late AnimationController verseAnimationController;
-  late Animation<double> juzAnimation;
-  late Animation<double> surahAnimation;
-  late Animation<double> verseAnimation;
+  // animations
+  late final AnimationController juzAnimationController,
+      surahAnimationController,
+      verseAnimationController;
+  late final Animation<double> juzAnimation,
+      surahAnimation,
+      verseAnimation;
+
+  /* ───────────────  INIT  ─────────────── */
 
   @override
   void initState() {
@@ -62,76 +62,61 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     isPlayingWholeSurah = false;
     entireSurahQueued = false;
 
-    // Audio setup
+    // audio
     audioPlayer = AudioPlayer();
-    onCompleteSubscription = audioPlayer.onPlayerComplete.listen((event) {
-      // If we're playing an entire surah, move to the next verse automatically
+    onCompleteSubscription =
+        audioPlayer.onPlayerComplete.listen((event) async {
       if (entireSurahQueued && currentVerseInQueue < verseCountForSurah) {
         currentVerseInQueue++;
-        playAudioQueueVerse();
+        await playAudioQueueVerse();
       } else {
-        // End of surah or single verse finished
-        isPlaying = false;
-        isPlayingWholeSurah = false;
-        entireSurahQueued = false;
+        isPlaying = isPlayingWholeSurah = entireSurahQueued = false;
         setState(() {});
       }
     });
 
-    // Data setup
-    allJuzNumbers = List.generate(30, (index) => index + 1);
-    allSurahNumbers = List.generate(quran.totalSurahCount, (index) => index + 1);
+    // data
+    allJuzNumbers = List.generate(30, (i) => i + 1);
+    allSurahNumbers =
+        List.generate(quran.totalSurahCount, (i) => i + 1); // 1‑114
     totalSurahCount = quran.totalSurahCount;
 
-    // Default states
     currentJuz = 1;
     currentSurah = 1;
     verseCountForSurah = quran.getVerseCount(currentSurah);
-    showSurahSelection = false;
-    showVerseSelection = false;
     selectedJuzForSurahs = 1;
     selectedSurahForVerses = 1;
+    showSurahSelection = showVerseSelection = false;
 
-    // Scroll controllers
+    // scroll
     scrollControllerJuz = ScrollController();
     scrollControllerSurah = ScrollController();
     scrollControllerVerse = ScrollController();
 
-    // Animation controllers
-    juzAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    surahAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    verseAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
+    // animations
+    juzAnimationController =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    surahAnimationController =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    verseAnimationController =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
 
-    // Animations
-    juzAnimation = CurvedAnimation(
-      parent: juzAnimationController,
-      curve: Curves.easeInOut,
-    );
-    surahAnimation = CurvedAnimation(
-      parent: surahAnimationController,
-      curve: Curves.easeInOut,
-    );
-    verseAnimation = CurvedAnimation(
-      parent: verseAnimationController,
-      curve: Curves.easeInOut,
-    );
+    juzAnimation =
+        CurvedAnimation(parent: juzAnimationController, curve: Curves.easeInOut);
+    surahAnimation =
+        CurvedAnimation(parent: surahAnimationController, curve: Curves.easeInOut);
+    verseAnimation =
+        CurvedAnimation(parent: verseAnimationController, curve: Curves.easeInOut);
 
-    // Simulate a brief loading
+    // tiny fake load
     Future.delayed(const Duration(milliseconds: 300), () {
       isLoading = false;
       setState(() {});
       juzAnimationController.forward();
     });
   }
+
+  /* ───────────────  DISPOSE  ─────────────── */
 
   @override
   void dispose() {
@@ -145,23 +130,19 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     juzAnimationController.dispose();
     surahAnimationController.dispose();
     verseAnimationController.dispose();
-
     super.dispose();
   }
 
-  // ---------------------- Navigation Helpers ----------------------
+  /* ───────────────  NAV HELPERS  ─────────────── */
 
   void selectJuz(int juzNumber) {
     currentJuz = juzNumber;
     surahsInJuz = [];
 
-    // Retrieve the surah-to-verse mapping from the quran package
-    var data = quran.getSurahAndVersesFromJuz(juzNumber);
-    for (var entry in data.entries) {
-      surahsInJuz.add(entry.key);
+    final data = quran.getSurahAndVersesFromJuz(juzNumber);
+    for (final e in data.entries) {
+      surahsInJuz.add(e.key);
     }
-
-    // Remove duplicates
     surahsInJuz = surahsInJuz.toSet().toList();
 
     selectedJuzForSurahs = juzNumber;
@@ -185,10 +166,10 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     setState(() {});
   }
 
-  // ---------------------- Audio Playback ----------------------
+  /* ───────────────  AUDIO  ─────────────── */
 
   Future<void> playAudio(int surah, int ayah) async {
-    String url = quran.getAudioURLByVerse(surah, ayah);
+    final url = quran.getAudioURLByVerse(surah, ayah);
     await audioPlayer.play(UrlSource(url));
     isPlaying = true;
     setState(() {});
@@ -196,16 +177,13 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
 
   Future<void> pauseAudio() async {
     await audioPlayer.pause();
-    isPlaying = false;
-    isPlayingWholeSurah = false;
+    isPlaying = isPlayingWholeSurah = false;
     setState(() {});
   }
 
   Future<void> stopAudio() async {
     await audioPlayer.stop();
-    isPlaying = false;
-    isPlayingWholeSurah = false;
-    entireSurahQueued = false;
+    isPlaying = isPlayingWholeSurah = entireSurahQueued = false;
     setState(() {});
   }
 
@@ -214,57 +192,43 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     verseCountForSurah = quran.getVerseCount(surahNumber);
     currentVerseInQueue = 1;
 
-    entireSurahQueued = true;
-    isPlayingWholeSurah = true;
+    entireSurahQueued = isPlayingWholeSurah = true;
     playAudioQueueVerse();
   }
 
   Future<void> playAudioQueueVerse() async {
-    String url = quran.getAudioURLByVerse(currentSurah, currentVerseInQueue);
+    final url = quran.getAudioURLByVerse(currentSurah, currentVerseInQueue);
     await audioPlayer.play(UrlSource(url));
     isPlaying = true;
     setState(() {});
   }
 
-  // ---------------------- UI Builders ----------------------
+  /* ───────────────  UI BUILD HELPERS  ─────────────── */
 
-  Widget buildJuzList(BuildContext context) {
+  Widget buildJuzList(BuildContext ctx) {
+    final loc = AppLocalizations.of(ctx)!;
     return FadeTransition(
       opacity: juzAnimation,
       child: ListView.builder(
         controller: scrollControllerJuz,
         physics: const BouncingScrollPhysics(),
         itemCount: allJuzNumbers.length,
-        itemBuilder: (context, index) {
-          int juzNumber = allJuzNumbers[index];
+        itemBuilder: (_, i) {
+          final n = allJuzNumbers[i];
           return GestureDetector(
-            onTap: () {
-              selectJuz(juzNumber);
-            },
+            onTap: () => selectJuz(n),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 1,
-                ),
+                border: Border.all(color: Theme.of(ctx).colorScheme.primary),
               ),
               child: ListTile(
-                title: Text(
-                  'Juz $juzNumber',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onBackground,
-                  ),
-                ),
-                trailing: Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.onBackground,
-                ),
+                title: Text(loc.juzLabel(n),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                trailing: Icon(Icons.arrow_forward_ios_rounded,
+                    size: 18, color: Theme.of(ctx).colorScheme.onBackground),
               ),
             ),
           );
@@ -273,104 +237,83 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildSurahListForJuz(BuildContext context) {
+  Widget buildSurahListForJuz(BuildContext ctx) {
+    final loc = AppLocalizations.of(ctx)!;
     return FadeTransition(
       opacity: surahAnimation,
       child: Column(
         children: [
-          // Header for Surahs in this Juz
+          // header
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Theme.of(context).colorScheme.primary.withOpacity(0.9),
-                  Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                  Theme.of(ctx).colorScheme.primary.withOpacity(.9),
+                  Theme.of(ctx).colorScheme.secondary.withOpacity(.8),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Icon(
-                  Icons.auto_stories,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  size: 28,
-                ),
+                Icon(Icons.auto_stories,
+                    size: 28, color: Theme.of(ctx).colorScheme.onPrimary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Juz $selectedJuzForSurahs Surahs',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: Text(loc.juzSurahHeader(selectedJuzForSurahs),
+                      style: TextStyle(
+                          color: Theme.of(ctx).colorScheme.onPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
                 ),
                 IconButton(
+                  icon:
+                      Icon(Icons.close, color: Theme.of(ctx).colorScheme.onPrimary),
                   onPressed: () {
-                    // Go back to the Juz list
                     showSurahSelection = false;
                     showVerseSelection = false;
-                    juzAnimationController.reset();
-                    juzAnimationController.forward();
+                    juzAnimationController
+                      ..reset()
+                      ..forward();
                     setState(() {});
                   },
-                  icon: Icon(
-                    Icons.close,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
                 ),
               ],
             ),
           ),
-          // Surah list
+          // list
           Expanded(
             child: ListView.builder(
               controller: scrollControllerSurah,
               physics: const BouncingScrollPhysics(),
               itemCount: surahsInJuz.length,
-              itemBuilder: (context, index) {
-                int sNumber = surahsInJuz[index];
+              itemBuilder: (_, i) {
+                final s = surahsInJuz[i];
                 return GestureDetector(
-                  onTap: () {
-                    selectSurah(sNumber);
-                  },
+                  onTap: () => selectSurah(s),
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 1,
-                      ),
+                      border:
+                          Border.all(color: Theme.of(ctx).colorScheme.primary),
                     ),
                     child: ListTile(
-                      title: Text(
-                        quran.getSurahName(sNumber),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onBackground,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${quran.getVerseCount(sNumber)} Verses',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onBackground,
-                        ),
-                      ),
-                      trailing: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.onBackground,
-                      ),
+                      title: Text(quran.getSurahName(s),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      subtitle: Text(loc.versesLabel(quran.getVerseCount(s)),
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(ctx).colorScheme.onBackground)),
+                      trailing: Icon(Icons.arrow_forward_ios_rounded,
+                          size: 18,
+                          color: Theme.of(ctx).colorScheme.onBackground),
                     ),
                   ),
                 );
@@ -382,121 +325,93 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildVerseListForSurah(BuildContext context) {
+  Widget buildVerseListForSurah(BuildContext ctx) {
+    final loc = AppLocalizations.of(ctx)!;
     return FadeTransition(
       opacity: verseAnimation,
       child: Column(
         children: [
-          // Header for Verses in this Surah
+          // header
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Theme.of(context).colorScheme.primary.withOpacity(0.9),
-                  Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                  Theme.of(ctx).colorScheme.primary.withOpacity(.9),
+                  Theme.of(ctx).colorScheme.secondary.withOpacity(.8),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Icon(
-                  Icons.library_books,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  size: 28,
-                ),
+                Icon(Icons.library_books,
+                    size: 28, color: Theme.of(ctx).colorScheme.onPrimary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    quran.getSurahName(selectedSurahForVerses),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: Text(quran.getSurahName(selectedSurahForVerses),
+                      style: TextStyle(
+                          color: Theme.of(ctx).colorScheme.onPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
                 ),
                 IconButton(
+                  icon:
+                      Icon(Icons.close, color: Theme.of(ctx).colorScheme.onPrimary),
                   onPressed: () {
-                    // Go back to the Surah list
                     showVerseSelection = false;
-                    surahAnimationController.reset();
-                    surahAnimationController.forward();
+                    surahAnimationController
+                      ..reset()
+                      ..forward();
                     setState(() {});
                   },
-                  icon: Icon(
-                    Icons.close,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
+                )
               ],
             ),
           ),
-          // Play Entire Surah
+          // play full surah
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+              color: Theme.of(ctx).colorScheme.secondary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Theme.of(context).colorScheme.secondary,
-                width: 1,
-              ),
+              border:
+                  Border.all(color: Theme.of(ctx).colorScheme.secondary, width: 1),
             ),
             child: ListTile(
-              title: Text(
-                'Play Entire Surah',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onBackground,
-                ),
-              ),
-              trailing: Icon(
-                Icons.play_arrow_rounded,
-                color: Theme.of(context).colorScheme.onBackground,
-              ),
-              onTap: () {
-                playEntireSurah(selectedSurahForVerses);
-              },
+              title: Text(loc.playEntireSurah,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+              trailing: Icon(Icons.play_arrow_rounded,
+                  color: Theme.of(ctx).colorScheme.onBackground),
+              onTap: () => playEntireSurah(selectedSurahForVerses),
             ),
           ),
-          // Verse list
+          // verses
           Expanded(
             child: ListView.builder(
               controller: scrollControllerVerse,
               physics: const BouncingScrollPhysics(),
               itemCount: verseCountForSurah,
-              itemBuilder: (context, index) {
-                int verseNumber = index + 1;
-                String verseText = quran.getVerse(selectedSurahForVerses, verseNumber);
-
+              itemBuilder: (_, i) {
+                final v = i + 1;
+                final txt = quran.getVerse(selectedSurahForVerses, v);
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(ctx).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 0.5,
-                    ),
+                        color: Theme.of(ctx).colorScheme.primary, width: .5),
                   ),
                   child: ListTile(
-                    title: Text(
-                      '$verseNumber. $verseText',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onBackground,
-                      ),
-                    ),
-                    onTap: () {
-                      playAudio(selectedSurahForVerses, verseNumber);
-                    },
+                    title: Text('$v. $txt',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500)),
+                    onTap: () => playAudio(selectedSurahForVerses, v),
                   ),
                 );
               },
@@ -507,218 +422,138 @@ class QuranPageState extends State<QuranPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget buildAudioPlayerControls(BuildContext context) {
+  Widget buildAudioPlayerControls(BuildContext ctx) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+        color: Theme.of(ctx).colorScheme.primary.withOpacity(.05),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-            color: Theme.of(context).colorScheme.onBackground,
-            onPressed: () {
-              if (isPlaying) {
-                pauseAudio();
-              } else {
-                // If user presses play without selecting anything,
-                // default to currentSurah, verse 1
-                playAudio(currentSurah, 1);
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.stop),
-            color: Theme.of(context).colorScheme.onBackground,
-            onPressed: () {
-              stopAudio();
-            },
-          ),
-        ],
-      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconButton(
+          icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+          onPressed: () =>
+              isPlaying ? pauseAudio() : playAudio(currentSurah, 1),
+        ),
+        IconButton(icon: const Icon(Icons.stop), onPressed: stopAudio),
+      ]),
     );
   }
 
-  Widget buildMainBody(BuildContext context) {
-    return Stack(
-      children: [
-        // Light background pattern
-        Positioned.fill(
-          child: CustomPaint(
-            painter: SimpleQuranBackgroundPainter(),
-          ),
-        ),
-        // Main content
-        isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  // The main area with Juz, Surah, or Verse
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      child: !showSurahSelection
-                          ? buildJuzList(context)
-                          : !showVerseSelection
-                              ? buildSurahListForJuz(context)
-                              : buildVerseListForSurah(context),
-                    ),
-                  ),
-                  // Audio controls at the bottom
-                  buildAudioPlayerControls(context),
-                  const SizedBox(height: 8),
-                ],
-              ),
-      ],
-    );
-  }
+  /* ───────────────  MAIN BUILD  ─────────────── */
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
-      // Keep the clean AppBar with a search icon
       appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.book, size: 28),  // Book icon added here
-            const SizedBox(width: 8),
-            const Text('Quran'),
-          ],
-        ),
+        title: Row(children: [
+          const Icon(Icons.book, size: 28),
+          const SizedBox(width: 8),
+          Text(loc.quranTitle),
+        ]),
+        toolbarHeight: 80,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              showSearch(context: context, delegate: QuranSearchDelegate());
-            },
-          ),
-                      const SizedBox(width: 8),
-
+              icon: const Icon(Icons.search),
+              onPressed: () => showSearch(
+                  context: context, delegate: QuranSearchDelegate(loc))),
+          const SizedBox(width: 8),
         ],
-        toolbarHeight: 80,  // Increased AppBar height
-
       ),
       backgroundColor: Theme.of(context).colorScheme.background,
-      body: buildMainBody(context),
+      body: Stack(children: [
+        Positioned.fill(child: CustomPaint(painter: SimpleQuranBackgroundPainter())),
+        isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(children: [
+                Expanded(
+                    child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 500),
+                        child: !showSurahSelection
+                            ? buildJuzList(context)
+                            : !showVerseSelection
+                                ? buildSurahListForJuz(context)
+                                : buildVerseListForSurah(context))),
+                buildAudioPlayerControls(context),
+                const SizedBox(height: 8),
+              ]),
+      ]),
     );
   }
 }
 
-// ---------------------- Custom Painter for Background ----------------------
+/* ───────────────  SIMPLE BG  ─────────────── */
+
 class SimpleQuranBackgroundPainter extends CustomPainter {
   @override
-  void paint(Canvas canvas, Size size) {
-    Paint paintBg = Paint()..color = Colors.blueGrey.withOpacity(0.03);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paintBg);
+  void paint(Canvas c, Size s) {
+    final bg = Paint()..color = Colors.blueGrey.withOpacity(.03);
+    c.drawRect(Rect.fromLTWH(0, 0, s.width, s.height), bg);
 
-    Paint circlePaint = Paint()..color = Colors.blueGrey.withOpacity(0.08);
-    canvas.drawCircle(
-      Offset(size.width * 0.2, size.height * 0.25),
-      80,
-      circlePaint,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.8, size.height * 0.6),
-      100,
-      circlePaint,
-    );
+    final circ = Paint()..color = Colors.blueGrey.withOpacity(.08);
+    c.drawCircle(Offset(s.width * .2, s.height * .25), 80, circ);
+    c.drawCircle(Offset(s.width * .8, s.height * .6), 100, circ);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(_) => false;
 }
 
-// ---------------------- Quran Search Delegate ----------------------
+/* ───────────────  SEARCH DELEGATE  ─────────────── */
+
 class QuranSearchDelegate extends SearchDelegate {
-  @override
-  String get searchFieldLabel => "Search for a verse";
+  QuranSearchDelegate(this.loc);
+  final AppLocalizations loc;
 
   @override
-  List<Widget>? buildActions(BuildContext context) {
-    // Clear search text
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = "";
-        },
-      ),
-    ];
-  }
+  String get searchFieldLabel => loc.searchHint;
 
   @override
-  Widget? buildLeading(BuildContext context) {
-    // Back button
-    return IconButton(
+  List<Widget>? buildActions(BuildContext ctx) => [
+        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')
+      ];
+
+  @override
+  Widget? buildLeading(BuildContext ctx) => IconButton(
       icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null); // Close search
-      },
-    );
-  }
+      onPressed: () => close(ctx, null));
 
   @override
-  Widget buildResults(BuildContext context) {
-    // Simple text-based search across all verses
-    List<Map<String, dynamic>> results = [];
-    for (int i = 1; i <= quran.totalSurahCount; i++) {
-      int versesCount = quran.getVerseCount(i);
-      for (int j = 1; j <= versesCount; j++) {
-        String verseText = quran.getVerse(i, j);
-        if (verseText.toLowerCase().contains(query.toLowerCase())) {
-          results.add({
-            "surah": i,
-            "verse": j,
-            "text": verseText,
-          });
+  Widget buildResults(BuildContext ctx) {
+    final results = <Map<String, dynamic>>[];
+    for (int s = 1; s <= quran.totalSurahCount; s++) {
+      final vc = quran.getVerseCount(s);
+      for (int v = 1; v <= vc; v++) {
+        final txt = quran.getVerse(s, v);
+        if (txt.toLowerCase().contains(query.toLowerCase())) {
+          results.add({"surah": s, "verse": v, "text": txt});
         }
       }
     }
 
     if (results.isEmpty) {
-      return Center(
-        child: Text("No verses found for '$query'"),
-      );
+      return Center(child: Text(loc.searchNoResults(query)));
     }
 
     return ListView.builder(
       itemCount: results.length,
-      itemBuilder: (context, index) {
-        int surah = results[index]["surah"];
-        int verse = results[index]["verse"];
-        String text = results[index]["text"];
-
+      itemBuilder: (_, i) {
+        final s = results[i]['surah'] as int;
+        final v = results[i]['verse'] as int;
+        final txt = results[i]['text'] as String;
         return ListTile(
-          title: Text('Surah $surah: Verse $verse'),
-          subtitle: Text(text),
-          onTap: () {
-            // Close the search; you could navigate to that verse if desired
-            close(context, null);
-          },
+          title: Text(loc.searchResultTitle(s, v)),
+          subtitle: Text(txt),
+          onTap: () => close(ctx, null),
         );
       },
     );
   }
 
   @override
-  Widget buildSuggestions(BuildContext context) {
-    // Provide suggestions as user types
-    if (query.isEmpty) {
-      return const Center(
-        child: Text(
-          "Type a word or phrase to search in the Quran",
-          style: TextStyle(fontSize: 16),
-        ),
-      );
-    }
-    return Center(
-      child: Text(
-        "Search verses containing: $query",
-        style: const TextStyle(fontSize: 16),
-      ),
-    );
-  }
+  Widget buildSuggestions(BuildContext ctx) => query.isEmpty
+      ? Center(child: Text(loc.searchPrompt))
+      : Center(child: Text(loc.searchSuggestions(query)));
 }

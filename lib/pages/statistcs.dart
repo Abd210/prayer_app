@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../utils/azkar_storage.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 enum Timeframe { daily, weekly, monthly }
 
@@ -42,20 +43,22 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
     return FutureBuilder<Map<String, Map<String, bool>>>(
       future: _future,
       builder: (_, snap) {
         if (!snap.hasData) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
         if (snap.data!.isEmpty) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Azkar Statistics')),
-            body: const Center(
+            appBar: AppBar(title: Text(loc.statsTitle)),
+            body: Center(
               child: Text(
-                'No statistics yet.\nFinish any Azkar list and come back!',
+                loc.statsNoData,
                 textAlign: TextAlign.center,
               ),
             ),
@@ -78,7 +81,7 @@ class _StatisticsPageState extends State<StatisticsPage>
         return Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(
-            title: const Text('Azkar Statistics'),
+            title: Text(loc.statsTitle),
             backgroundColor: Colors.transparent,
             elevation: 0,
           ),
@@ -88,23 +91,23 @@ class _StatisticsPageState extends State<StatisticsPage>
               SafeArea(
                 child: Column(
                   children: [
-                    _kpiRow(context),
+                    _kpiRow(context, loc),
                     const SizedBox(height: 4),
                     TabBar(
                       controller: _tabCtrl,
-                      tabs: const [
-                        Tab(text: 'DAILY'),
-                        Tab(text: 'WEEKLY'),
-                        Tab(text: 'MONTHLY'),
+                      tabs: [
+                        Tab(text: loc.tabDaily.toUpperCase()),
+                        Tab(text: loc.tabWeekly.toUpperCase()),
+                        Tab(text: loc.tabMonthly.toUpperCase()),
                       ],
                     ),
                     Expanded(
                       child: TabBarView(
                         controller: _tabCtrl,
                         children: [
-                          _dailyView(context),
-                          _periodView(context, Timeframe.weekly),
-                          _periodView(context, Timeframe.monthly),
+                          _dailyView(context, loc),
+                          _periodView(context, loc, Timeframe.weekly),
+                          _periodView(context, loc, Timeframe.monthly),
                         ],
                       ),
                     ),
@@ -137,11 +140,9 @@ class _StatisticsPageState extends State<StatisticsPage>
     );
   }
 
-  Widget _kpiRow(BuildContext ctx) {
-    final big = Theme.of(ctx)
-        .textTheme
-        .labelLarge
-        ?.copyWith(fontWeight: FontWeight.bold);
+  Widget _kpiRow(BuildContext ctx, AppLocalizations loc) {
+    final big =
+        Theme.of(ctx).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold);
     final small = Theme.of(ctx).textTheme.bodySmall;
 
     Widget tile(String label, String value) => Expanded(
@@ -157,7 +158,11 @@ class _StatisticsPageState extends State<StatisticsPage>
               ],
             ),
             child: Column(
-              children: [Text(value, style: big), const SizedBox(height: 4), Text(label, style: small)],
+              children: [
+                Text(value, style: big),
+                const SizedBox(height: 4),
+                Text(label, style: small)
+              ],
             ),
           ),
         );
@@ -166,9 +171,9 @@ class _StatisticsPageState extends State<StatisticsPage>
       padding: const EdgeInsets.fromLTRB(14, 80, 14, 14),
       child: Row(
         children: [
-          tile('Days', '$_totalDays'),
-          tile('Streak', '$_currentStreak'),
-          tile('Best', '$_bestStreak'),
+          tile(loc.kpiDays, '$_totalDays'),
+          tile(loc.kpiStreak, '$_currentStreak'),
+          tile(loc.kpiBest, '$_bestStreak'),
         ],
       ),
     );
@@ -176,20 +181,20 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   /* ───────────────────── DAILY VIEW ───────────────────── */
 
-  Widget _dailyView(BuildContext ctx) {
+  Widget _dailyView(BuildContext ctx, AppLocalizations loc) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _chartCard(ctx, Timeframe.daily, _dailyRatio, onTap: (d) {
+        _chartCard(ctx, loc, Timeframe.daily, _dailyRatio, onTap: (d) {
           setState(() => _selectedDay = d);
         }),
         const SizedBox(height: 18),
-        _dailyDetailCard(ctx),
+        _dailyDetailCard(ctx, loc),
       ],
     );
   }
 
-  Widget _dailyDetailCard(BuildContext ctx) {
+  Widget _dailyDetailCard(BuildContext ctx, AppLocalizations loc) {
     final t = Theme.of(ctx);
     final entries = _dailyRaw[_selectedDay]!;
     return Card(
@@ -201,8 +206,8 @@ class _StatisticsPageState extends State<StatisticsPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(DateFormat.yMMMMEEEEd().format(_selectedDay!),
-                style: t.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+                style:
+                    t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
@@ -230,11 +235,11 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   /* ───────────────────── WEEKLY / MONTHLY ───────────────────── */
 
-  Widget _periodView(BuildContext ctx, Timeframe tf) {
+  Widget _periodView(BuildContext ctx, AppLocalizations loc, Timeframe tf) {
     final ratios = switch (tf) {
-      Timeframe.weekly  => _aggregate(_dailyRatio, _weekKey),
+      Timeframe.weekly => _aggregate(_dailyRatio, _weekKey),
       Timeframe.monthly => _aggregate(_dailyRatio, _monthKey),
-      _                 => _dailyRatio,
+      _ => _dailyRatio,
     };
     final sorted = ratios.entries.toList()
       ..sort((a, b) => b.key.compareTo(a.key));
@@ -242,19 +247,19 @@ class _StatisticsPageState extends State<StatisticsPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _chartCard(ctx, tf, ratios),
+        _chartCard(ctx, loc, tf, ratios),
         const SizedBox(height: 18),
-        ...sorted.map((e) => _periodCard(ctx, tf, e.key, e.value)),
+        ...sorted.map((e) => _periodCard(ctx, loc, tf, e.key, e.value)),
       ],
     );
   }
 
   Widget _periodCard(
-      BuildContext ctx, Timeframe tf, DateTime key, double ratio) {
+      BuildContext ctx, AppLocalizations loc, Timeframe tf, DateTime key, double ratio) {
     final t = Theme.of(ctx);
     final title = switch (tf) {
       Timeframe.weekly =>
-        'Week ${DateFormat('w').format(key)} · ${DateFormat('yyyy').format(key)}',
+        '${loc.week} ${DateFormat('w').format(key)} · ${DateFormat('yyyy').format(key)}',
       Timeframe.monthly =>
         DateFormat.yMMMM().format(key),
       _ => '',
@@ -280,7 +285,7 @@ class _StatisticsPageState extends State<StatisticsPage>
               backgroundColor: t.colorScheme.primary.withOpacity(.2),
             ),
             const SizedBox(height: 8),
-            Text('${(ratio * 100).toStringAsFixed(1)} % completed',
+            Text(loc.percentCompleted((ratio * 100).toStringAsFixed(1)),
                 style: t.textTheme.bodySmall
                     ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
           ],
@@ -291,11 +296,12 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   /* ───────────────────── CHART CARD ───────────────────── */
 
-  Widget _chartCard(BuildContext ctx, Timeframe tf, Map<DateTime, double> map,
+  Widget _chartCard(BuildContext ctx, AppLocalizations loc, Timeframe tf,
+      Map<DateTime, double> map,
       {void Function(DateTime)? onTap}) {
     if (map.length < 2) {
-      return _placeholderCard(
-          'Need more data to draw a ${tf.name.toLowerCase()} trend', ctx);
+      final msg = loc.needMoreData(_periodName(tf, loc));
+      return _placeholderCard(msg, ctx);
     }
 
     final entries = map.entries.toList()
@@ -359,7 +365,7 @@ class _StatisticsPageState extends State<StatisticsPage>
                         first.add(Duration(days: pt.x.toInt()));
                     final label = switch (tf) {
                       Timeframe.daily   => DateFormat('d MMM').format(date),
-                      Timeframe.weekly  => 'W${DateFormat('w').format(date)}',
+                      Timeframe.weekly  => '${loc.weekShort}${DateFormat('w').format(date)}',
                       Timeframe.monthly => DateFormat('MMM yy').format(date),
                     };
                     return LineTooltipItem('$label\n$pct %',
@@ -398,8 +404,8 @@ class _StatisticsPageState extends State<StatisticsPage>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: SizedBox(
           height: 160,
-          child: Center(
-              child: Text(msg, style: Theme.of(ctx).textTheme.bodyMedium)),
+          child:
+              Center(child: Text(msg, style: Theme.of(ctx).textTheme.bodyMedium)),
         ),
       );
 
@@ -466,4 +472,11 @@ class _StatisticsPageState extends State<StatisticsPage>
     _currentStreak = streak;
     _bestStreak = best;
   }
+
+  /* period‑name helper for localisation */
+  String _periodName(Timeframe tf, AppLocalizations loc) => switch (tf) {
+        Timeframe.daily   => loc.periodDaily,
+        Timeframe.weekly  => loc.periodWeekly,
+        Timeframe.monthly => loc.periodMonthly,
+      };
 }

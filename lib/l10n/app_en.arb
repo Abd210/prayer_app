@@ -1,0 +1,189 @@
+{
+  "@@locale": "en",
+
+
+  "appTitle": "Advanced Islamic App",
+  "settings": "Settings",
+  "appearance": "Appearance",
+  "language": "Language",
+  "aboutApp": "About App",
+  "selectColorTheme": "Select App Color Theme",
+  "customTheme": "Custom Theme",
+
+
+  "enableDarkMode": "Enable Dark Mode",
+  "enableNotifications": "Enable Notifications",
+  "enableDailyHadith": "Enable Daily Hadith",
+  "highAccuracyCalculation": "High Accuracy Calculation",
+
+
+  "calculationMethod": "Calculation Method",
+  "madhab": "Madhab",
+  "use24HourFormat": "Use 24‑hour Format",
+
+
+  "languageEnglish": "English",
+  "languageArabic": "Arabic",
+
+
+  "pick": "Pick",
+  "cancel": "Cancel",
+  "save": "Save",
+  "createCustomTheme": "Create Your Own Theme",
+  "chooseLightTheme": "Choose a Light Theme",
+  "currentTheme": "Current:",
+  "primary": "Primary",
+  "secondary": "Secondary",
+  "background": "Background",
+  "surface": "Surface",
+
+  "@enableDarkMode": { "description": "Switch to dark theme" },
+
+  "nextPrayerLabel": "Next Prayer: {prayerName}",
+  "@nextPrayerLabel": {
+    "placeholders": { "prayerName": { "type": "String" } }
+  },
+
+  "startsIn": "Starts in {countdown}",
+  "@startsIn": {
+    "placeholders": { "countdown": { "type": "String" } }
+  },
+
+  "returnToToday": "Return to Today",
+  "testNotification": "Test Notification",
+  "reload": "Reload",
+  "statisticsTooltip": "Statistics",
+
+  "sunnahTimes": "Sunnah Times",
+  "tipOfDay": "Tip of the Day:",
+  
+  "prayerTimeTitle": "Prayer Time",
+  "prayerNotificationBody": "It's time for {prayerName} prayer in {city}",
+  "@prayerNotificationBody": {
+    "placeholders": {
+      "prayerName": { "type": "String" },
+      "city": { "type": "String" }
+    }
+  },
+
+  "locationUnavailable": "Location unavailable",
+
+  "prayerFajr": "Fajr",
+  "prayerSunrise": "Sunrise",
+  "prayerDhuhr": "Dhuhr",
+  "prayerAsr": "Asr",
+  "prayerMaghrib": "Maghrib",
+  "prayerIsha": "Isha",
+
+  "middleNight": "Middle of Night",
+  "lastThirdNight": "Last Third of Night",
+
+  "tipEstablishPrayer": "“Establish prayer and give charity.”",
+  "tipBetterThanSleep": "“Prayer is better than sleep.”",
+  "tipCallUponMe": "“Call upon Me, I will respond.”",
+  "tipReflectQuran": "Reflect upon the Quran daily for spiritual growth.",
+  "tipKhushu": "Strive for khushū` (humility) in prayer.",
+  "tipSharePrayer": "Share your knowledge of prayer times with friends.",
+  "tipSunnah": "Keep consistent with Sunnah prayers for extra reward.",
+
+  "navPrayers": "Prayers",
+  "navAzkar":"Azkār",
+  "navQibla":"Qibla",
+  "navQuran":"Quran",
+  "navSettings":"Settings",
+
+  "locating":"Locating…",
+  "refreshCompass":"Refresh location & heading",
+  "headingLabel":"Heading",
+  "qiblaLabel":"Qibla",
+  "facingQibla":"You are facing the Qibla!",
+  "deltaFromQibla":"Δ {degrees}° from Qibla",
+  "compassWarnInterference":"Compass accuracy may drop if you’re near magnetic fields or metal objects.",
+  "compassWarnNeedle":"The orange needle points toward the Qibla direction.",
+  "azkarTasbihTitle": "Azkar & Tasbih",
+  "freeTasbih": "Free Tasbih",
+ 
+
+  "statsTitle": "Azkar Statistics",
+  "statsNoData": "No statistics yet.\nFinish any Azkar list and come back!",
+  "tabDaily": "Daily",
+  "tabWeekly": "Weekly",
+  "tabMonthly": "Monthly",
+  "kpiDays": "Days",
+  "kpiStreak": "Streak",
+  "kpiBest": "Best",
+  "week": "Week",
+  "weekShort": "W",
+  "needMoreData": "Need more data to draw a {period} trend",
+  "@needMoreData": { "placeholders": { "period": {} } },
+  "percentCompleted": "{percent} % completed",
+  "@percentCompleted": { "placeholders": { "percent": {} } },
+  "periodDaily": "daily",
+  "periodWeekly": "weekly",
+  "periodMonthly": "monthly",
+
+
+  "tasbihTitle": "Tasbih Advanced",
+  "globalTasbih": "Global Tasbih",
+  "subCounters": "Sub‑Counters",
+  "resetAll": "Reset All",
+  "tasbihHint": "Tap the main box for a global count.\nTap any sub box for specific counts (33 each).",
+
+  "compactView": "Compact View",
+  "expandedView": "Expanded View",
+
+  "azkarCopy": "Copy",
+  "azkarCopied": "Azkar text copied to clipboard!",
+  "tapAnywhere": "Tap Anywhere to Count",
+  "azkarReminder": "Remembrance of Allah is the greatest (Qur'an 29:45).",
+
+  "azkarCompletedTitle": "{title} Completed!",
+  "@azkarCompletedTitle": { "placeholders": { "title": {} } },
+  "azkarCompletedContent": "You have finished all azkār in this category.",
+  "ok": "OK",
+  "azkarTasbihTitle": "Azkar & Tasbih",
+  "azkarTab": "Azkar",
+  "tasbihTab": "Tasbih",
+
+
+
+
+  "quranTitle": "Quran",
+  "searchHint": "Search for a verse",
+  "searchNoResults": "No verses found for '{query}'",
+  "@searchNoResults": { "placeholders": { "query": {} } },
+  "searchPrompt": "Type a word or phrase to search in the Quran",
+  "searchSuggestions": "Search verses containing: {query}",
+  "@searchSuggestions": { "placeholders": { "query": {} } },
+  "searchResultTitle": "Surah {surah}: Verse {verse}",
+  "@searchResultTitle": { "placeholders": { "surah": {}, "verse": {} } },
+  "juzLabel": "Juz {number}",
+  "@juzLabel": { "placeholders": { "number": {} } },
+  "juzSurahHeader": "Surahs in Juz {juz}",
+  "@juzSurahHeader": { "placeholders": { "juz": {} } },
+  "versesLabel": "{count} Verses",
+  "@versesLabel": { "placeholders": { "count": {} } },
+  "playEntireSurah": "Play Entire Surah",
+
+
+  "quranTitle": "Quran",
+  "searchHint": "Search for a verse",
+  "searchNoResults": "No verses found for '{query}'",
+  "@searchNoResults": { "placeholders": { "query": {} } },
+  "searchPrompt": "Type a word or phrase to search in the Quran",
+  "searchSuggestions": "Search verses containing: {query}",
+  "@searchSuggestions": { "placeholders": { "query": {} } },
+  "searchResultTitle": "Surah {surah}: Verse {verse}",
+  "@searchResultTitle": { "placeholders": { "surah": {}, "verse": {} } },
+  "juzLabel": "Juz {number}",
+  "@juzLabel": { "placeholders": { "number": {} } },
+  "juzSurahHeader": "Surahs in Juz {juz}",
+  "@juzSurahHeader": { "placeholders": { "juz": {} } },
+  "versesLabel": "{count} Verses",
+  "@versesLabel": { "placeholders": { "count": {} } },
+  "playEntireSurah": "Play Entire Surah"
+
+
+
+
+}

@@ -4,6 +4,7 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../services/location_service.dart';
 
@@ -30,9 +31,11 @@ class QiblaPageState extends State<QiblaPage> {
 
   /// Called by the MainNavScreen or from the Refresh button
   Future<void> refreshPage() async {
+        final l10n = AppLocalizations.of(context)!;
+
     setState(() {
       _isLoading = true;
-      _cityName = 'Locating...';
+      _cityName = l10n.locating;
       _qiblaDirection = null;
     });
 
@@ -41,7 +44,7 @@ class QiblaPageState extends State<QiblaPage> {
 
     if (position == null) {
       setState(() {
-        _cityName = 'Location unavailable';
+        _cityName = l10n.locationUnavailable;
         _isLoading = false;
       });
       return;
@@ -98,6 +101,8 @@ class QiblaPageState extends State<QiblaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     final diff = _calculateDifference();
     final isFacingQibla = diff <= 5;
     final heading = _deviceHeading ?? 0.0;
@@ -109,7 +114,7 @@ class QiblaPageState extends State<QiblaPage> {
         title: Text(_cityName),
         actions: [
           IconButton(
-            tooltip: 'Refresh location & heading',
+            tooltip: l10n.refreshCompass,
             icon: const Icon(Icons.refresh),
             onPressed: refreshPage,
           ),
@@ -118,11 +123,9 @@ class QiblaPageState extends State<QiblaPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : (_qiblaDirection == null)
-              ? const Center(
-                  child: Text(
-                    'Location unavailable.\nPlease enable GPS or permissions.',
-                    textAlign: TextAlign.center,
-                  ),
+              ? Center(
+                  child: Text(l10n.locationUnavailable,
+                      textAlign: TextAlign.center),
                 )
               : AnimatedWaveBackground(
                   child: Center(
@@ -133,27 +136,22 @@ class QiblaPageState extends State<QiblaPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildReading('Heading', heading, theme),
-                            _buildReading('Qibla', qibla, theme),
+                            _buildReading(l10n.headingLabel, heading, theme),
+                            _buildReading(l10n.qiblaLabel, qibla, theme),
                           ],
                         ),
                         const SizedBox(height: 12),
 
                         // Warning banners
-                        const WarningBanner(
-                          message:
-                              "Compass accuracy may drop if you're near magnetic fields or metal objects.",
-                        ),
-                        const WarningBanner(
-                          message:
-                              "The orange needle points toward the Qibla direction.",
-                        ),
+                        WarningBanner(message: l10n.compassWarnInterference),
+                        WarningBanner(message: l10n.compassWarnNeedle),
+
                         const SizedBox(height: 8),
 
                         // Facing / difference text
                         Text(
                           isFacingQibla
-                              ? 'You are facing the Qibla!'
+                              ? l10n.facingQibla
                               : 'Δ  ${diff.toStringAsFixed(1)}°  from Qibla',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight:

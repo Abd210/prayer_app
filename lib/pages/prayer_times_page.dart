@@ -1,165 +1,154 @@
+// lib/pages/prayer_times_page.dart
+// ————————————————————————————————————————————————————————————————
+// Full file: public state class + refreshPage() + localisation hooks
+// ————————————————————————————————————————————————————————————————
 import 'dart:async';
-import 'dart:math' as math;
-// NEW for caching location in JSON form (though we only store lat/lng/city name):
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
-import 'package:prayer/pages/statistcs.dart';
 import 'package:provider/provider.dart';
-// For storing and retrieving from local storage:
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+import 'statistcs.dart';
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
-import '../services/notification_service.dart'; // New import
+import '../services/notification_service.dart';
 
-/// Animated wave background for matching the Qibla style
+/// ————————————————— Animated wave background —————————————————
 class AnimatedWaveBackground extends StatefulWidget {
   final Widget child;
-  const AnimatedWaveBackground({Key? key, required this.child}) : super(key: key);
+  const AnimatedWaveBackground({super.key, required this.child});
 
   @override
-  _AnimatedWaveBackgroundState createState() => _AnimatedWaveBackgroundState();
+  State<AnimatedWaveBackground> createState() => _AnimatedWaveBackgroundState();
 }
 
 class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
     with SingleTickerProviderStateMixin {
-  late AnimationController _waveController;
-
-  @override
-  void initState() {
-    super.initState();
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 5),
-    )..repeat();
-  }
+  late final AnimationController _ctrl =
+      AnimationController(vsync: this, duration: const Duration(seconds: 5))
+        ..repeat();
 
   @override
   void dispose() {
-    _waveController.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AnimatedBuilder(
-      animation: _waveController,
-      builder: (_, __) {
-        return CustomPaint(
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) => CustomPaint(
           painter: _WavePainter(
-            animationValue: _waveController.value,
-            waveColor: theme.colorScheme.primary.withOpacity(0.15),
-          ),
+              value: _ctrl.value,
+              color: Theme.of(context).colorScheme.primary.withOpacity(.15)),
           child: widget.child,
-        );
-      },
-    );
-  }
+        ),
+      );
 }
 
 class _WavePainter extends CustomPainter {
-  final double animationValue;
-  final Color waveColor;
-  _WavePainter({required this.animationValue, required this.waveColor});
+  final double value;
+  final Color color;
+  const _WavePainter({required this.value, required this.color});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = waveColor;
-    _drawWave(canvas, size, paint, amplitude: 18, speed: 1.0, yOffset: 0);
-    _drawWave(canvas, size, paint, amplitude: 24, speed: 1.4, yOffset: 40);
-    _drawWave(canvas, size, paint, amplitude: 16, speed: 2.0, yOffset: 70);
+  void paint(Canvas c, Size s) {
+    final p = Paint()..color = color;
+    _wave(c, s, p, 18, 1.0, 0);
+    _wave(c, s, p, 24, 1.4, 40);
+    _wave(c, s, p, 16, 2.0, 70);
   }
 
-  void _drawWave(
-    Canvas canvas,
-    Size size,
-    Paint paint, {
-    required double amplitude,
-    required double speed,
-    required double yOffset,
-  }) {
-    final path = Path();
-    path.moveTo(0, size.height);
-    for (double x = 0; x <= size.width; x++) {
-      final y = amplitude *
-              math.sin((x / size.width * 2 * math.pi * speed) +
-                  (animationValue * 2 * math.pi * speed)) +
-          (size.height - 120 - yOffset);
+  void _wave(Canvas c, Size s, Paint p, double amp, double speed, double off) {
+    final path = Path()..moveTo(0, s.height);
+    for (double x = 0; x <= s.width; x++) {
+      final y = amp *
+              math.sin((x / s.width * 2 * math.pi * speed) +
+                  (value * 2 * math.pi * speed)) +
+          (s.height - 120 - off);
       path.lineTo(x, y);
     }
-    path.lineTo(size.width, size.height);
-    path.close();
-    canvas.drawPath(path, paint);
+    path
+      ..lineTo(s.width, s.height)
+      ..close();
+    c.drawPath(path, p);
   }
 
   @override
-  bool shouldRepaint(_WavePainter oldDelegate) => true;
+  bool shouldRepaint(covariant _WavePainter old) => true;
 }
 
+/// ————————————————— Prayer Times Page —————————————————
 class PrayerTimesPage extends StatefulWidget {
-  const PrayerTimesPage({Key? key}) : super(key: key);
-
+  const PrayerTimesPage({super.key});
   @override
-  State<PrayerTimesPage> createState() => PrayerTimesPageState();
+  PrayerTimesPageState createState() => PrayerTimesPageState();
 }
 
 class PrayerTimesPageState extends State<PrayerTimesPage>
     with WidgetsBindingObserver {
-  Position? _currentPosition;
-  String _cityName = '...';
+  Position? _pos;
+  String _city = '...';
 
-  final Map<int, PrayerTimes?> _cachedTimes = {};
-  final Map<int, SunnahTimes?> _cachedSunnah = {};
-  final int _daysRange = 7;
+  final _cachedTimes = <int, PrayerTimes?>{};
+  final _cachedSunnah = <int, SunnahTimes?>{};
+  static const _daysRange = 7;
 
-  late PageController _pageController;
-  final int _pageCenterIndex = 7;
-  int _currentIndex = 7;
+  late final PageController _pager =
+      PageController(initialPage: _pageCenterIndex);
+  static const _pageCenterIndex = 7;
+  int _currentIndex = _pageCenterIndex;
 
-  Timer? _countdownTimer;
-  Duration _timeUntilNext = Duration.zero;
-  String _nextPrayerName = '-';
-  double _prayerProgress = 0.0;
+  Timer? _ticker;
+  Duration _untilNext = Duration.zero;
+  String _nextName = '-';
+  double _progress = 0;
 
-  final List<String> _tips = [
-    '“Establish prayer and give charity.”',
-    '“Prayer is better than sleep.”',
-    '“Call upon Me, I will respond.”',
-    'Reflect upon the Quran daily for spiritual growth.',
-    'Strive for khushū` (humility) in prayer.',
-    'Share your knowledge of prayer times with friends.',
-    'Keep consistent with Sunnah prayers for extra reward.',
-  ];
-  String _randomTip = '';
+  // — tips (filled after first frame when l10n is available) ——–
+  List<String> _tips = [];
+  final _rand = math.Random();
+  String get _randomTip =>
+      _tips.isEmpty ? '...' : _tips[_rand.nextInt(_tips.length)];
 
-  // NEW weekly cache keys (7 days in ms):
-  static const _weeklyLocationKey = 'WEEKLY_LOCATION_DATA';
-  static const _weeklyLocationTsKey = 'WEEKLY_LOCATION_TIMESTAMP';
-  static const _oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+  // — weekly cache keys
+  static const _locKey = 'WEEKLY_LOCATION_DATA';
+  static const _tsKey = 'WEEKLY_LOCATION_TIMESTAMP';
+  static const _weekMs = 7 * 24 * 60 * 60 * 1000;
 
+  // —————————————————— init / dispose
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _pageController = PageController(initialPage: _pageCenterIndex);
-    _randomTip = _tips[math.Random().nextInt(_tips.length)];
 
-    // NEW: Attempt to load location from 1-week cache (without reordering your code)
-    _tryLoadWeeklyLocation();
+    _tryLoadWeekly();
+    _initLocation();
+    _startTicker();
 
-    // You asked not to remove or reorder these lines:
-    _initLocation();    // We'll skip inside it if we already loaded from cache
-    _startCountdown();  // countdown always starts
+    Provider.of<PrayerSettingsProvider>(context, listen: false)
+        .addListener(_onPrefsChanged);
 
+    // build tips
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<PrayerSettingsProvider>(context, listen: false)
-          .addListener(_onPrayerSettingsChanged);
+      final l = AppLocalizations.of(context)!;
+      _tips = [
+        l.tipEstablishPrayer,
+        l.tipBetterThanSleep,
+        l.tipCallUponMe,
+        l.tipReflectQuran,
+        l.tipKhushu,
+        l.tipSharePrayer,
+        l.tipSunnah,
+      ];
+      setState(() {});
     });
   }
 
@@ -167,59 +156,45 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     Provider.of<PrayerSettingsProvider>(context, listen: false)
-        .removeListener(_onPrayerSettingsChanged);
-    _countdownTimer?.cancel();
-    _pageController.dispose();
+        .removeListener(_onPrefsChanged);
+    _ticker?.cancel();
+    _pager.dispose();
     super.dispose();
   }
 
+  /// ——— called by MainNavScreen via GlobalKey
+  void refreshPage() => _initLocation();
+
+  // —————————————————— lifecycle
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      refreshPage();
-    }
+    if (state == AppLifecycleState.resumed) _initLocation();
   }
 
-  void refreshPage() {
-    // Keep same name & order
-    _initLocation();
-  }
-
-  void _onPrayerSettingsChanged() {
+  void _onPrefsChanged() {
     _cachedTimes.clear();
     _cachedSunnah.clear();
-    _preloadPrayerTimes();
-    _updateNextPrayer();
+    _preload();
+    _updateNext();
+        /*  🔹 NEW — re‑schedule notifications so they
+        match the *current* calculation settings            */
+    _scheduleToday();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  NEW: Attempt to load location+city from a 7-day-old cache
-  // ─────────────────────────────────────────────────────────────────────────────
-  Future<void> _tryLoadWeeklyLocation() async {
+  // —————————————————— weekly‑cache helpers
+  Future<void> _tryLoadWeekly() async {
     final prefs = await SharedPreferences.getInstance();
-    final lastTs = prefs.getInt(_weeklyLocationTsKey) ?? 0;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (nowMs - lastTs > _oneWeekMs) {
-      return; // older than 7 days => do nothing
-    }
+    final last = prefs.getInt(_tsKey) ?? 0;
+    if (DateTime.now().millisecondsSinceEpoch - last > _weekMs) return;
 
-    final raw = prefs.getString(_weeklyLocationKey);
+    final raw = prefs.getString(_locKey);
     if (raw == null || raw.isEmpty) return;
 
     try {
-      final Map<String, dynamic> data = json.decode(raw);
-      final lat = data['lat'] as double?;
-      final lng = data['lng'] as double?;
-      final city = data['city'] as String?;
-
-      if (lat == null || lng == null || city == null) return;
-
-      // If we got valid info, set them
-      _cityName = city;
-      _currentPosition = Position(
-        latitude: lat,
-        longitude: lng,
+      final m = json.decode(raw) as Map<String, dynamic>;
+      _pos = Position(
+        latitude: m['lat'],
+        longitude: m['lng'],
         timestamp: DateTime.now(),
         accuracy: 0,
         altitude: 0,
@@ -229,144 +204,107 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         altitudeAccuracy: 0,
         headingAccuracy: 0,
       );
-
-      // Next time `_initLocation()` is called, we skip fetching new location
-      // Then we do normal preload to get prayer times
-      setState(() {});
-      _preloadPrayerTimes();
-      _updateNextPrayer();
-      _scheduleTodayNotifications();
-    } catch (_) {
-      // ignore
-    }
+      _city = m['city'];
+      _preload();
+      _updateNext();
+      _scheduleToday();
+    } catch (_) {/* ignore */}
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  //  NEW: Save location & city after we do a successful fetch
-  // ─────────────────────────────────────────────────────────────────────────────
-  Future<void> _saveWeeklyLocation() async {
-    if (_currentPosition == null) return;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-
-    final data = <String, dynamic>{
-      'lat': _currentPosition!.latitude,
-      'lng': _currentPosition!.longitude,
-      'city': _cityName,
-    };
-
+  Future<void> _saveWeekly() async {
+    if (_pos == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_weeklyLocationKey, json.encode(data));
-    await prefs.setInt(_weeklyLocationTsKey, nowMs);
+    await prefs.setString(
+        _locKey,
+        json.encode(
+            {'lat': _pos!.latitude, 'lng': _pos!.longitude, 'city': _city}));
+    await prefs.setInt(_tsKey, DateTime.now().millisecondsSinceEpoch);
   }
 
-  // We keep the same name & order. We just skip if `_currentPosition` was set by cache:
+  // —————————————————— location + preload
   Future<void> _initLocation() async {
-    if (_currentPosition != null) {
-      // Means we already loaded from weekly cache => skip new location
-      return;
-    }
+    if (_pos != null) return; // already have cached location
 
+    final l10n = AppLocalizations.of(context)!;
     final pos = await LocationService.determinePosition();
     if (!mounted) return;
+
     if (pos == null) {
       setState(() {
-        _currentPosition = null;
-        _cityName = 'Location unavailable';
+        _pos = null;
+        _city = l10n.locationUnavailable;
       });
       return;
     }
-    _currentPosition = pos;
+
+    _pos = pos;
     try {
-      final placemarks =
-          await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      if (placemarks.isNotEmpty) {
-        final placemark = placemarks.firstWhere(
-          (p) =>
-              (p.locality != null && p.locality!.isNotEmpty) ||
-              (p.subLocality != null && p.subLocality!.isNotEmpty) ||
-              (p.subAdministrativeArea != null &&
-                  p.subAdministrativeArea!.isNotEmpty) ||
-              (p.administrativeArea != null && p.administrativeArea!.isNotEmpty) ||
-              (p.country != null && p.country!.isNotEmpty) ||
-              (p.name != null && p.name!.isNotEmpty),
-          orElse: () => placemarks.first,
-        );
-        String city = placemark.locality ??
-            placemark.subLocality ??
-            placemark.subAdministrativeArea ??
-            placemark.administrativeArea ??
-            placemark.country ??
-            placemark.name ??
-            '';
-        if (city.isEmpty) {
-          city =
-              '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
-        }
-        _cityName = city;
-      } else {
-        _cityName =
-            '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
-      }
-    } catch (e) {
-      _cityName =
+      final pl = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      _city = _chooseCity(pl, pos);
+    } catch (_) {
+      _city =
           '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
     }
-    setState(() {});
-    _preloadPrayerTimes();
-    _updateNextPrayer();
-    _scheduleTodayNotifications();
 
-    // NEW: store lat,lng,city for next 7 days
-    _saveWeeklyLocation();
+    setState(() {});
+    _preload();
+    _updateNext();
+    _scheduleToday();
+    _saveWeekly();
   }
 
-  // We do NOT rename or reorder this function. Kept exactly the same:
-  void _preloadPrayerTimes() {
-    if (_currentPosition == null) return;
-    final provider =
-        Provider.of<PrayerSettingsProvider>(context, listen: false);
+  String _chooseCity(List<Placemark> list, Position p) {
+    final plc = list.firstWhere(
+        (pl) =>
+            (pl.locality?.isNotEmpty ?? false) ||
+            (pl.subLocality?.isNotEmpty ?? false) ||
+            (pl.administrativeArea?.isNotEmpty ?? false) ||
+            (pl.country?.isNotEmpty ?? false),
+        orElse: () => list.first);
+    return plc.locality ??
+        plc.subLocality ??
+        plc.administrativeArea ??
+        plc.country ??
+        '${p.latitude.toStringAsFixed(2)}, ${p.longitude.toStringAsFixed(2)}';
+  }
+
+  void _preload() {
+    if (_pos == null) return;
+    final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
     final now = DateTime.now();
-    for (int offset = -_daysRange; offset <= _daysRange; offset++) {
-      final date = now.add(Duration(days: offset));
-      final comps = DateComponents.from(date);
-      final params = provider.calculationMethod.getParameters();
-      params.madhab = provider.madhab;
-      params.adjustments.fajr = 2;
-      params.adjustments.dhuhr = 2;
-      params.adjustments.asr = 2;
-      params.adjustments.maghrib = 2;
-      params.adjustments.isha = 2;
-      final coords = Coordinates(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-      );
-      final pt = PrayerTimes(coords, comps, params);
-      final st = SunnahTimes(pt);
-      _cachedTimes[offset] = pt;
-      _cachedSunnah[offset] = st;
+
+    for (int off = -_daysRange; off <= _daysRange; off++) {
+      final date = now.add(Duration(days: off));
+      final params = prefs.calculationMethod.getParameters()
+        ..madhab = prefs.madhab
+        ..adjustments =
+            PrayerAdjustments(fajr: 2, dhuhr: 2, asr: 2, maghrib: 2, isha: 2);
+      final coords = Coordinates(_pos!.latitude, _pos!.longitude);
+      final pt = PrayerTimes(coords, DateComponents.from(date), params);
+      _cachedTimes[off] = pt;
+      _cachedSunnah[off] = SunnahTimes(pt);
     }
     setState(() {});
   }
 
-  // We do NOT rename or reorder this function either:
-  void _startCountdown() {
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _updateNextPrayer();
-    });
+  // —————————————————— ticker & next prayer
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _updateNext());
   }
 
-  void _updateNextPrayer() {
+  void _updateNext() {
     final pt = _cachedTimes[0];
     if (pt == null) {
-      _timeUntilNext = Duration.zero;
-      _nextPrayerName = '-';
-      _prayerProgress = 0.0;
-      setState(() {});
+      setState(() {
+        _untilNext = Duration.zero;
+        _nextName = '-';
+        _progress = 0;
+      });
       return;
     }
-    final now = DateTime.now();
-    final timesLocal = <Prayer, DateTime>{
+
+    final map = {
       Prayer.fajr: pt.fajr.toLocal(),
       Prayer.sunrise: pt.sunrise.toLocal(),
       Prayer.dhuhr: pt.dhuhr.toLocal(),
@@ -375,64 +313,59 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       Prayer.isha: pt.isha.toLocal(),
     };
 
+    final now = DateTime.now();
     DateTime? nextTime;
-    String? nextName;
-    DateTime? currentPrayerTime;
-    for (final prayer in [
+    late Prayer nextPrayer;
+
+    for (final p in [
       Prayer.fajr,
       Prayer.dhuhr,
       Prayer.asr,
       Prayer.maghrib,
       Prayer.isha
     ]) {
-      final pTime = timesLocal[prayer]!;
-      if (now.isBefore(pTime)) {
-        nextTime = pTime;
-        nextName = prayer.name.toUpperCase();
-        currentPrayerTime = _previousPrayerTime(prayer, timesLocal);
+      if (now.isBefore(map[p]!)) {
+        nextTime = map[p];
+        nextPrayer = p;
         break;
       }
     }
+
+    DateTime currentStart;
     if (nextTime == null) {
-      final tomorrowFajr = pt.fajr.add(const Duration(days: 1)).toLocal();
-      nextTime = tomorrowFajr;
-      nextName = 'FAJR (TOMORROW)';
-      currentPrayerTime = timesLocal[Prayer.isha];
+      nextTime = pt.fajr.add(const Duration(days: 1)).toLocal();
+      nextPrayer = Prayer.fajr;
+      currentStart = map[Prayer.isha]!;
+    } else {
+      const order = [
+        Prayer.fajr,
+        Prayer.dhuhr,
+        Prayer.asr,
+        Prayer.maghrib,
+        Prayer.isha
+      ];
+      final idx = order.indexOf(nextPrayer);
+      currentStart = idx == 0 ? map[Prayer.isha]! : map[order[idx - 1]]!;
     }
-    final untilNext = nextTime!.difference(now);
-    final totalRange = nextTime.difference(currentPrayerTime!);
-    final progress = 1.0 - (untilNext.inSeconds / totalRange.inSeconds);
+
+    final until = nextTime.difference(now);
+    final total = nextTime.difference(currentStart);
     setState(() {
-      _timeUntilNext = untilNext;
-      _nextPrayerName = nextName!;
-      _prayerProgress = progress.clamp(0.0, 1.0);
+      _untilNext = until;
+      _nextName = nextPrayer.name.toUpperCase();
+      _progress = 1 - (until.inSeconds / total.inSeconds);
     });
   }
 
-  DateTime _previousPrayerTime(Prayer prayer, Map<Prayer, DateTime> times) {
-    if (prayer == Prayer.fajr) {
-      return times[Prayer.isha]!;
-    }
-    final order = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
-    final idx = order.indexOf(prayer);
-    return times[order[idx - 1]]!;
-  }
-
-  int _offsetFromIndex(int index) => index - _pageCenterIndex;
-
-  Future<void> _scheduleTodayNotifications() async {
+  // —————————————————— notifications
+  Future<void> _scheduleToday() async {
     final pt = _cachedTimes[0];
     if (pt == null) return;
-    final now = DateTime.now();
+
     await NotificationService().cancelAllNotifications();
-    final prayerTimes = {
-      Prayer.fajr: pt.fajr.toLocal(),
-      Prayer.dhuhr: pt.dhuhr.toLocal(),
-      Prayer.asr: pt.asr.toLocal(),
-      Prayer.maghrib: pt.maghrib.toLocal(),
-      Prayer.isha: pt.isha.toLocal(),
-    };
-    Map<Prayer, int> prayerIds = {
+    final l10n = AppLocalizations.of(context)!;
+    final now = DateTime.now();
+    const ids = {
       Prayer.fajr: 0,
       Prayer.dhuhr: 1,
       Prayer.asr: 2,
@@ -440,96 +373,82 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       Prayer.isha: 4,
     };
 
-    for (var entry in prayerTimes.entries) {
-      if (entry.value.isAfter(now)) {
-        String prayerName = entry.key.name.toUpperCase();
+    final times = {
+      Prayer.fajr: pt.fajr,
+      Prayer.dhuhr: pt.dhuhr,
+      Prayer.asr: pt.asr,
+      Prayer.maghrib: pt.maghrib,
+      Prayer.isha: pt.isha,
+    };
+
+    for (final e in times.entries) {
+      final t = e.value.toLocal();
+      if (t.isAfter(now)) {
         await NotificationService().scheduleNotification(
-          id: prayerIds[entry.key]!,
-          title: 'Prayer Time',
-          body: "It's time for $prayerName prayer in $_cityName",
-          scheduledDate: entry.value,
+          id: ids[e.key]!,
+          title: l10n.prayerTimeTitle,
+          body:
+              l10n.prayerNotificationBody(e.key.name.toUpperCase(), _city),
+          scheduledDate: t,
         );
       }
     }
   }
 
+  // —————————————————— UI
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return AnimatedWaveBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text(_cityName),
+          title: Text(_city),
           actions: [
-            // New Test Notification button:
             IconButton(
               icon: const Icon(Icons.notifications_active),
-              tooltip: 'Test Notification',
-              onPressed: () async {
-                await NotificationService().sendTestNotification();
-              },
+              tooltip: l10n.testNotification,
+              onPressed: () => NotificationService().sendTestNotification(),
             ),
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: refreshPage,
+              tooltip: l10n.reload,
+              onPressed: _initLocation,
             ),
           ],
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StatisticsPage()),
-            );
-          },
-          tooltip: 'Statistics',
+          tooltip: l10n.statisticsTooltip,
+          onPressed: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const StatisticsPage())),
           child: const Icon(Icons.insert_chart_outlined),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        body: _currentPosition == null
-                ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-            IconButton(
-              iconSize: 32,
-              tooltip: 'Reload',
-              onPressed: refreshPage,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-      )
+        body: _pos == null
+            ? _loadingView(l10n)
             : Column(
                 children: [
-                  _buildNextPrayerCard(context),
+                  _nextPrayerCard(context, l10n),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: ElevatedButton.icon(
+                      icon: const Icon(Icons.today),
+                      label: Text(l10n.returnToToday,
+                          style: const TextStyle(color: Colors.white)),
                       onPressed: () {
                         setState(() => _currentIndex = _pageCenterIndex);
-                        _pageController.jumpToPage(_pageCenterIndex);
+                        _pager.jumpToPage(_pageCenterIndex);
                       },
-                      icon: const Icon(Icons.today),
-                      label: const Text(
-                        'Return to Today',
-                        style: TextStyle(color: Colors.white),
-                      ),
                     ),
                   ),
                   Expanded(
                     child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: (_daysRange * 2) + 1,
-                      onPageChanged: (idx) {
-                        setState(() => _currentIndex = idx);
-                      },
-                      itemBuilder: (context, idx) {
-                        final offset = _offsetFromIndex(idx);
-                        return _buildDayView(offset);
-                      },
+                      controller: _pager,
+                      itemCount: _daysRange * 2 + 1,
+                      onPageChanged: (i) => setState(() => _currentIndex = i),
+                      itemBuilder: (_, idx) =>
+                          _dayView(idx - _pageCenterIndex, l10n),
                     ),
                   ),
                 ],
@@ -538,13 +457,27 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     );
   }
 
-  Widget _buildNextPrayerCard(BuildContext context) {
-    final hh = _timeUntilNext.inHours;
-    final mm = _timeUntilNext.inMinutes % 60;
-    final ss = _timeUntilNext.inSeconds % 60;
-    final countdown = '${hh.toString().padLeft(2, '0')}:'
-        '${mm.toString().padLeft(2, '0')}:'
-        '${ss.toString().padLeft(2, '0')}';
+  Widget _loadingView(AppLocalizations l10n) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 18),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 30),
+              tooltip: l10n.reload,
+              onPressed: _initLocation,
+            ),
+          ],
+        ),
+      );
+
+  Widget _nextPrayerCard(BuildContext ctx, AppLocalizations l10n) {
+    final h = _untilNext.inHours;
+    final m = _untilNext.inMinutes % 60;
+    final s = _untilNext.inSeconds % 60;
+    final countdown =
+        '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -552,43 +485,32 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Theme.of(context).colorScheme.primary.withOpacity(0.9),
-            Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+            Theme.of(ctx).colorScheme.primary.withOpacity(.9),
+            Theme.of(ctx).colorScheme.secondary.withOpacity(.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(2, 2),
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
       child: Column(
         children: [
           Text(
-            'Next Prayer: $_nextPrayerName',
+            l10n.nextPrayerLabel(_nextName),
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 6),
-          Text(
-            'Starts in $countdown',
-            style: const TextStyle(fontSize: 16, color: Colors.white),
-          ),
+          Text(l10n.startsIn(countdown),
+              style: const TextStyle(fontSize: 16, color: Colors.white)),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: _prayerProgress,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: const AlwaysStoppedAnimation(Colors.white),
+              value: _progress,
+              backgroundColor: Colors.white.withOpacity(.3),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               minHeight: 6,
             ),
           ),
@@ -597,67 +519,58 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     );
   }
 
-  Widget _buildDayView(int offset) {
+  Widget _dayView(int offset, AppLocalizations l10n) {
     final pt = _cachedTimes[offset];
     final st = _cachedSunnah[offset];
     if (pt == null || st == null) {
       return const Center(child: CircularProgressIndicator());
     }
+
     final date = DateTime.now().add(Duration(days: offset));
-    final dateStr = DateFormat('EEEE, MMM d, yyyy').format(date);
-    final provider =
-        Provider.of<PrayerSettingsProvider>(context, listen: false);
-    final format = provider.use24hFormat ? 'HH:mm' : 'hh:mm a';
+    final locale = Localizations.localeOf(context).languageCode;
+    final dateStr = DateFormat.yMMMMEEEEd(locale).format(date);
+
+    final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final fmt = prefs.use24hFormat ? 'HH:mm' : 'hh:mm a';
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            dateStr,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+          Text(dateStr, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          _prayerRow('Fajr', pt.fajr, format, Icons.wb_twighlight),
-          _prayerRow('Sunrise', pt.sunrise, format, Icons.wb_sunny),
-          _prayerRow('Dhuhr', pt.dhuhr, format, Icons.wb_sunny_outlined),
-          _prayerRow('Asr', pt.asr, format, Icons.filter_drama),
-          _prayerRow('Maghrib', pt.maghrib, format, Icons.nightlight_round),
-          _prayerRow('Isha', pt.isha, format, Icons.nightlight),
+          _row(l10n.prayerFajr, pt.fajr, fmt, Icons.wb_twighlight),
+          _row(l10n.prayerSunrise, pt.sunrise, fmt, Icons.wb_sunny),
+          _row(l10n.prayerDhuhr, pt.dhuhr, fmt, Icons.wb_sunny_outlined),
+          _row(l10n.prayerAsr, pt.asr, fmt, Icons.filter_drama),
+          _row(l10n.prayerMaghrib, pt.maghrib, fmt, Icons.nightlight_round),
+          _row(l10n.prayerIsha, pt.isha, fmt, Icons.nightlight),
           const Divider(height: 32),
-          Text('Sunnah Times', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.sunnahTimes, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          _prayerRow(
-              'Middle of Night', st.middleOfTheNight, format, Icons.dark_mode),
-          _prayerRow('Last Third of Night', st.lastThirdOfTheNight, format, Icons.mode_night),
+          _row(l10n.middleNight, st.middleOfTheNight, fmt, Icons.dark_mode),
+          _row(l10n.lastThirdNight, st.lastThirdOfTheNight, fmt, Icons.mode_night),
           const SizedBox(height: 24),
-          Text('Tip of the Day:', style: Theme.of(context).textTheme.titleMedium),
+          Text(l10n.tipOfDay, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text(
-            _randomTip,
-            style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
+          Text(_randomTip,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic)),
         ],
       ),
     );
   }
 
-  Widget _prayerRow(String label, DateTime time, String format, IconData icon) {
-    final localTime = time.toLocal();
-    final display = DateFormat(format).format(localTime);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          ),
-          Text(display),
-        ],
-      ),
-    );
-  }
+  Widget _row(String label, DateTime t, String fmt, IconData icon) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Icon(icon, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500))),
+            Text(DateFormat(fmt).format(t.toLocal())),
+          ],
+        ),
+      );
 }

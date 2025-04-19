@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:prayer/models/azakdata.dart'; // Example data import
+import 'package:prayer/models/azakdata.dart';
 import 'package:prayer/widgets/animated_wave_background.dart';
-import 'tasbih_azkar_reading_page.dart';      // To reference TasbihAdvancedPage, etc.
+import 'tasbih_azkar_reading_page.dart';
 
-/// 
-/// AZKAR & TASBIH ADVANCED PAGE
-/// 
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+///
+/// AZKAR & TASBIH ADVANCED PAGE
+///
 class AzkarAndTasbihAdvancedPage extends StatefulWidget {
   const AzkarAndTasbihAdvancedPage({Key? key}) : super(key: key);
 
@@ -14,14 +16,13 @@ class AzkarAndTasbihAdvancedPage extends StatefulWidget {
       _AzkarAndTasbihAdvancedPageState();
 }
 
-class _AzkarAndTasbihAdvancedPageState
-    extends State<AzkarAndTasbihAdvancedPage> with SingleTickerProviderStateMixin {
+class _AzkarAndTasbihAdvancedPageState extends State<AzkarAndTasbihAdvancedPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    // Two tabs: "Azkar" & "Tasbih"
     _tabController = TabController(length: 2, vsync: this);
   }
 
@@ -33,20 +34,21 @@ class _AzkarAndTasbihAdvancedPageState
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Azkar & Tasbih'),
+          title: Text(loc.azkarTasbihTitle),          // ← localised
           bottom: TabBar(
             controller: _tabController,
-            labelColor: Colors.white, 
-            unselectedLabelColor: Colors.white, 
-            tabs: const [
-              Tab(icon: Icon(Icons.menu_book), text: 'Azkar'),
-              Tab(icon: Icon(Icons.fingerprint), text: 'Tasbih'),
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white,
+            tabs: [
+              Tab(icon: const Icon(Icons.menu_book), text: loc.azkarTab),
+              Tab(icon: const Icon(Icons.fingerprint), text: loc.tasbihTab),
             ],
           ),
         ),
@@ -65,9 +67,9 @@ class _AzkarAndTasbihAdvancedPageState
   }
 }
 
-/// 
-/// AZKAR MENU PAGE
-/// 
+///
+/// AZKAR MENU PAGE
+///
 class _AzkarMenuPage extends StatefulWidget {
   const _AzkarMenuPage();
 
@@ -95,7 +97,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'Morning Azkar',
-                    items: morningAdhkar, // from azakdata.dart
+                    items: morningAdhkar,
                   ),
                 ),
               );
@@ -113,7 +115,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'Evening Azkar',
-                    items: eveningAdhkar, // from azakdata.dart
+                    items: eveningAdhkar,
                   ),
                 ),
               );
@@ -131,7 +133,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'Sleep Azkar',
-                    items: sleepAzkar, // from azakdata.dart
+                    items: sleepAzkar,
                   ),
                 ),
               );
@@ -149,7 +151,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'Waking Up Azkar',
-                    items: wakingUpAzkar, // from azakdata.dart
+                    items: wakingUpAzkar,
                   ),
                 ),
               );
@@ -167,7 +169,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'After Prayers Azkar',
-                    items: afterPrayersAzkar, // from azakdata.dart
+                    items: afterPrayersAzkar,
                   ),
                 ),
               );
@@ -185,7 +187,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'Surah Al-Mulk',
-                    items: surahAlMulkAzkar, // from azakdata.dart
+                    items: surahAlMulkAzkar,
                   ),
                 ),
               );
@@ -203,7 +205,7 @@ class _AzkarMenuPageState extends State<_AzkarMenuPage> {
                 MaterialPageRoute(
                   builder: (_) => AzkarReadingPage(
                     title: 'Surah Yaseen',
-                    items: surahYaseenAzkar, // from azakdata.dart
+                    items: surahYaseenAzkar,
                   ),
                 ),
               );
