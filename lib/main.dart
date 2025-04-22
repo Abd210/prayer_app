@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -10,6 +13,10 @@ import 'pages/splash_screen.dart';   // or MainNavScreen()
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  /// Request notification permission on Android
+  await requestNotificationPermission();
+
   await NotificationService().init();
 
   runApp(
@@ -22,6 +29,16 @@ void main() async {
       child: const MyApp(),
     ),
   );
+
+}
+
+Future<void> requestNotificationPermission() async {
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    final status = await Permission.notification.status;
+    if (!status.isGranted) {
+      await Permission.notification.request();
+    }
+  }
 }
 
 class MyApp extends StatelessWidget {

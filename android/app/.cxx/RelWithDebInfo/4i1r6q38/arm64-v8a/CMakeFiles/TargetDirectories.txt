@@ -1,0 +1,2 @@
+/Users/apple/development/flutter projects/prayer_app/android/app/.cxx/RelWithDebInfo/4i1r6q38/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/apple/development/flutter projects/prayer_app/android/app/.cxx/RelWithDebInfo/4i1r6q38/arm64-v8a/CMakeFiles/rebuild_cache.dir

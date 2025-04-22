@@ -31,9 +31,21 @@
   "surface": "سطح",
 
   "nextPrayerLabel": "الصلاة التالية: {prayerName}",
-  "@nextPrayerLabel": { "placeholders": { "prayerName": {} } },
+  "@nextPrayerLabel": {
+    "placeholders": {
+      "prayerName": {
+        "type": "String"
+      }
+    }
+  },
 
-  "startsIn": "تبدأ خلال {countdown}",
+  "@startsIn": {
+    "placeholders": {
+      "countdown": {
+        "type": "String"
+      }
+    }
+  },
   "@startsIn": { "placeholders": { "countdown": {} } },
 
   "returnToToday": "العودة إلى اليوم",
@@ -47,7 +59,14 @@
   "prayerTimeTitle": "وقت الصلاة",
   "prayerNotificationBody": "حان وقت صلاة {prayerName} في {city}",
   "@prayerNotificationBody": {
-    "placeholders": { "prayerName": {}, "city": {} }
+    "placeholders": {
+      "prayerName": {
+       "type": "String"
+      },
+      "city": {
+        "type": "String"
+      }
+    }
   },
 
   "locationUnavailable": "الموقع غير متاح",
@@ -100,9 +119,21 @@
   "week": "الأسبوع",
   "weekShort": "أ",
   "needMoreData": "تحتاج إلى مزيد من البيانات لرسم اتجاه {period}",
-  "@needMoreData": { "placeholders": { "period": {} } },
+  "@needMoreData": {
+    "placeholders": {
+      "period": {
+        "type": "Object"
+      }
+    }
+  },
   "percentCompleted": "اكتمل{percent}٪",
-  "@percentCompleted": { "placeholders": { "percent": {} } },
+  "@percentCompleted": {
+    "placeholders": {
+      "percent": {
+        "type": "Object"
+      }
+    }
+  },
   "periodDaily": "يومي",
   "periodWeekly": "أسبوعي",
   "periodMonthly": "شهري",
@@ -123,7 +154,13 @@
   "azkarReminder": "﴿وَلَذِكْرُ اللَّهِ أَكْبَرُ﴾ (العنكبوت ٤٥)",
 
   "azkarCompletedTitle": "اكتمل {title}!",
-  "@azkarCompletedTitle": { "placeholders": { "title": {} } },
+  "@azkarCompletedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "Object"
+      }
+    }
+  },
   "azkarCompletedContent": "لقد أنهيت جميع الأذكار في هذا القسم.",
   "ok": "حسناً",
 
@@ -136,20 +173,68 @@
     "quranTitle": "القرآن",
   "searchHint": "ابحث عن آية",
   "searchNoResults": "لم يتم العثور على آيات لـ \"{query}\"",
-  "@searchNoResults": { "placeholders": { "query": {} } },
+  "@searchNoResults": {
+    "placeholders": {
+      "query": {
+        "type": "Object"
+      }
+    }
+  },
   "searchPrompt": "اكتب كلمة أو عبارة للبحث في القرآن",
   "searchSuggestions": "بحث عن آيات تحتوي: {query}",
-  "@searchSuggestions": { "placeholders": { "query": {} } },
+  "@searchSuggestions": {
+    "placeholders": {
+      "query": {
+        "type": "Object"
+      }
+    }
+  },
   "searchResultTitle": "سورة {surah}: آية {verse}",
-  "@searchResultTitle": { "placeholders": { "surah": {}, "verse": {} } },
+  "@searchResultTitle": {
+    "placeholders": {
+      "surah": {
+        "type": "Object"
+      },
+      "verse": {
+        "type": "Object"
+      }
+    }
+  },
   "juzLabel": "جزء {number}",
-  "@juzLabel": { "placeholders": { "number": {} } },
+  "@juzLabel": {
+    "placeholders": {
+      "number": {
+        "type": "Object"
+      }
+    }
+  },
   "juzSurahHeader": "السور في الجزء {juz}",
-  "@juzSurahHeader": { "placeholders": { "juz": {} } },
+  "@juzSurahHeader": {
+    "placeholders": {
+      "juz": {
+        "type": "Object"
+      }
+    }
+  },
   "versesLabel": "{count} آية",
-  "@versesLabel": { "placeholders": { "count": {} } },
+  "@versesLabel": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
   "playEntireSurah": "تشغيل السورة كاملة",
   "surahLabel": "Surah {surahNumber}",
-  "surahName": "{number}. {name}"
-
+  "surahName": "{number}. {name}",
+  "@surahName": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

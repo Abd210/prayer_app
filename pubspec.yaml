@@ -20,7 +20,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   provider: ^6.0.3
   geolocator: ^9.0.2
-  flutter_local_notifications: ^18.0.1
+  flutter_local_notifications: ^19.1.0
   timezone: ^0.10.0
   adhan: ^2.0.0+1
   adhkar: ^0.0.1
@@ -36,6 +36,7 @@ dependencies:
   quran: ^1.0.0
   share_plus: ^10.1.4
   fl_chart: ^0.66.0
+  permission_handler: ^12.0.0+1
 
 dev_dependencies:
   flutter_test:
