@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'dart:io' show Platform;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -8,45 +9,61 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    // Configure platform-specific initialization settings.
+    print('[NotificationService] Initializing...');
+
+    // ✅ Create Android channel before initializing
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'prayer_channel',
+      'Prayer Notifications',
+      description: 'Notifications for prayer times',
+      importance: Importance.max,
+    );
+
+    final androidPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidPlugin?.createNotificationChannel(channel);
+    print('[NotificationService] Android channel created');
+
+    // ✅ Initialization settings
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
-        );
+    DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsDarwin,
     );
 
-    // Initialize the plugin.
+    // ✅ Initialize plugin
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    // Initialize time zone database.
+    print('[NotificationService] Plugin initialized');
+
+    // ✅ Initialize time zone database
     tz.initializeTimeZones();
 
-    // Request permissions for iOS.
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    // ✅ Request permissions
+    if (Platform.isIOS) {
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+    }
 
-    // Request notifications permission for Android (API 33+).
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    if (Platform.isAndroid) {
+      await androidPlugin?.requestNotificationsPermission();
+    }
+
+    print('[NotificationService] Permissions requested');
   }
 
-  /// Schedules a notification at [scheduledDate].  
-  /// If [repeatDaily] is true (default) then the notification is set to recur daily.
+  /// Schedules a notification at [scheduledDate].
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -54,6 +71,8 @@ class NotificationService {
     required DateTime scheduledDate,
     bool repeatDaily = true,
   }) async {
+    print('[NotificationService] Scheduling notification: $title at $scheduledDate');
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       title,
@@ -68,16 +87,14 @@ class NotificationService {
           priority: Priority.high,
         ),
       ),
-      // In v18 the androidAllowWhileIdle flag has been replaced by androidScheduleMode.
       androidScheduleMode: AndroidScheduleMode.exact,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      // Only use matchDateTimeComponents if you want a daily recurring notification.
+      // uiLocalNotificationDateInterpretation:
+      // UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
     );
   }
 
-  /// Helper method to send a test notification after 5 seconds.
+  /// Sends a test notification after 5 seconds
   Future<void> sendTestNotification() async {
     final testTime = DateTime.now().add(const Duration(seconds: 5));
     await scheduleNotification(
@@ -85,7 +102,7 @@ class NotificationService {
       title: 'Test Prayer Notification',
       body: 'It is time for test prayer!',
       scheduledDate: testTime,
-      repeatDaily: false, // test should trigger only once
+      repeatDaily: false,
     );
   }
 
