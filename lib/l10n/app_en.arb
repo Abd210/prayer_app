@@ -4,6 +4,7 @@
 
   "appTitle": "Advanced Islamic App",
   "settings": "Settings",
+  "settingsTitle": "Settings",
   "appearance": "Appearance",
   "language": "Language",
   "aboutApp": "About App",
@@ -12,14 +13,31 @@
 
 
   "enableDarkMode": "Enable Dark Mode",
+  "enableLightMode": "Enable Light Mode",
   "enableNotifications": "Enable Notifications",
   "enableDailyHadith": "Enable Daily Hadith",
   "highAccuracyCalculation": "High Accuracy Calculation",
+  "highAccuracySubtitle": "Includes elevation for more precise times",
+  "frequentLocationUpdates": "Frequent Location Updates",
+  "frequentLocationSubtitle": "Higher accuracy but more battery usage",
+  "otherSettings": "Other Settings",
+  "languageTitle": "Language",
+  "selectLanguage": "Select Language",
 
 
   "calculationMethod": "Calculation Method",
+  "calculationMethodLabel": "Prayer Calculation Method",
+  "calculationMethodTitle": "Prayer Calculation Method",
+  "asrCalculationTitle": "Asr Prayer Calculation",
   "madhab": "Madhab",
   "use24HourFormat": "Use 24‑hour Format",
+  "use24hFormat": "Use 24‑hour Format",
+  "timeFormatTitle": "Time Format",
+  "shafiiLabel": "Shafii",
+  "shafiiDescription": "Standard shadow length (majority of scholars)",
+  "hanafiLabel": "Hanafi",
+  "hanafiDescription": "Double shadow length",
+  "notifications": "Notifications",
 
 
   "languageEnglish": "English",
@@ -78,9 +96,9 @@
   "middleNight": "Middle of Night",
   "lastThirdNight": "Last Third of Night",
 
-  "tipEstablishPrayer": "“Establish prayer and give charity.”",
-  "tipBetterThanSleep": "“Prayer is better than sleep.”",
-  "tipCallUponMe": "“Call upon Me, I will respond.”",
+  "tipEstablishPrayer": "\"Establish prayer and give charity.\"",
+  "tipBetterThanSleep": "\"Prayer is better than sleep.\"",
+  "tipCallUponMe": "\"Call upon Me, I will respond.\"",
   "tipReflectQuran": "Reflect upon the Quran daily for spiritual growth.",
   "tipKhushu": "Strive for khushū` (humility) in prayer.",
   "tipSharePrayer": "Share your knowledge of prayer times with friends.",
@@ -93,12 +111,12 @@
   "navSettings":"Settings",
 
   "locating":"Locating…",
-  "refreshCompass":"Refresh location & heading",
+  "refreshCompass":"Refresh location & heading",
   "headingLabel":"Heading",
   "qiblaLabel":"Qibla",
   "facingQibla":"You are facing the Qibla!",
-  "deltaFromQibla":"Δ {degrees}° from Qibla",
-  "compassWarnInterference":"Compass accuracy may drop if you’re near magnetic fields or metal objects.",
+  "deltaFromQibla":"Δ {degrees}° from Qibla",
+  "compassWarnInterference":"Compass accuracy may drop if you're near magnetic fields or metal objects.",
   "compassWarnNeedle":"The orange needle points toward the Qibla direction.",
   "azkarTasbihTitle": "Azkar & Tasbih",
   "freeTasbih": "Free Tasbih",
@@ -135,7 +153,7 @@
   "azkarCopy": "Copy",
   "azkarCopied": "Azkar text copied to clipboard!",
   "tapAnywhere": "Tap Anywhere to Count",
-  "azkarReminder": "Remembrance of Allah is the greatest (Qur'an 29:45).",
+  "azkarReminder": "Remembrance of Allah is the greatest (Qur'an 29:45).",
 
   "azkarCompletedTitle": "{title} Completed!",
   "@azkarCompletedTitle": { "placeholders": { "title": {} } },
@@ -145,7 +163,35 @@
   "azkarTab": "Azkar",
   "tasbihTab": "Tasbih",
 
-
+  "customAzkar": "Custom Azkar",
+  "manageCustomAzkar": "Manage Custom Azkar",
+  "createAndEditCustomAzkar": "Create and edit your own azkar collections",
+  "createAzkar": "Create Azkar",
+  "editAzkar": "Edit Azkar",
+  "noCustomAzkar": "You don't have any custom azkar yet.\nCreate your first one!",
+  "createNewAzkar": "Create New Azkar",
+  "basicInfo": "Basic Information",
+  "title": "Title",
+  "arabicTitle": "Arabic Title",
+  "selectColor": "Select Color",
+  "selectIcon": "Select Icon",
+  "items": "Items",
+  "addItem": "Add Item",
+  "editItem": "Edit Item",
+  "noItemsYet": "You haven't added any items yet.\nClick the button above to add a new one.",
+  "deleteConfirmation": "Are you sure you want to delete '{title}'?",
+  "@deleteConfirmation": { "placeholders": { "title": {} } },
+  "delete": "Delete",
+  "edit": "Edit",
+  "deleted": "deleted",
+  "requiredField": "This field is required",
+  "arabicText": "Arabic Text",
+  "description": "Description",
+  "repeat": "Repeat",
+  "enterArabicText": "Enter Arabic text here...",
+  "addItemsFirst": "Please add at least one item first",
+  "errorSaving": "Error saving. Please try again.",
+  "deleteItemConfirmation": "Are you sure you want to delete this item?",
 
 
   "quranTitle": "Quran",
@@ -165,25 +211,13 @@
   "@versesLabel": { "placeholders": { "count": {} } },
   "playEntireSurah": "Play Entire Surah",
 
-
-  "quranTitle": "Quran",
-  "searchHint": "Search for a verse",
-  "searchNoResults": "No verses found for '{query}'",
-  "@searchNoResults": { "placeholders": { "query": {} } },
-  "searchPrompt": "Type a word or phrase to search in the Quran",
-  "searchSuggestions": "Search verses containing: {query}",
-  "@searchSuggestions": { "placeholders": { "query": {} } },
-  "searchResultTitle": "Surah {surah}: Verse {verse}",
-  "@searchResultTitle": { "placeholders": { "surah": {}, "verse": {} } },
-  "juzLabel": "Juz {number}",
-  "@juzLabel": { "placeholders": { "number": {} } },
-  "juzSurahHeader": "Surahs in Juz {juz}",
-  "@juzSurahHeader": { "placeholders": { "juz": {} } },
-  "versesLabel": "{count} Verses",
-  "@versesLabel": { "placeholders": { "count": {} } },
-  "playEntireSurah": "Play Entire Surah"
-
-
-
-
+  "prayerTimeAdjustments": "Prayer Time Adjustments",
+  "adjustmentMinutes": "Adjustment",
+  "resetAdjustments": "Reset Adjustments",
+  "locationSettings": "Location Settings",
+  "manualLocation": "Manual Location",
+  "adhanSettings": "Adhan Settings",
+  "enableAdhan": "Enable Adhan",
+  "adhanVolume": "Adhan Volume",
+  "testAdhan": "Test Adhan"
 }

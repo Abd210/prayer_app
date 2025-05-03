@@ -12,6 +12,10 @@ import '../services/language_provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 // ─────────────────────────────────────────────────────────────────
 
+import '../services/notification_service.dart';
+import '../services/adhan_service.dart';
+import '../services/location_service.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
 
@@ -23,9 +27,13 @@ class _SettingsPageState extends State<SettingsPage> {
   bool enableNotifications = true;
   bool enableDailyHadith = false;
   bool highAccuracyCalc = false;
-  String selectedLanguage = 'English';
+  String selectedLanguage = 'English'; // Using exactly the same string as in dropdown options
 
-  /// Preview swatches for predefined light‑theme palettes (index 0‑7)
+  // For adhan settings
+  bool _isAdhanEnabled = true;
+  double _adhanVolume = 0.5;
+
+  /// Preview swatches for predefined light‑theme palettes (index 0‑7)
   static final Map<int, List<Color>> _themeSwatchMap = {
     0: [Color(0xFF16423C), Color(0xFF6A9C89), Color(0xFFE9EFEC)],
     1: [Color(0xFF5B6EAE), Color(0xFFA8B9EE), Color(0xFFF2F2F7)],
@@ -35,13 +43,28 @@ class _SettingsPageState extends State<SettingsPage> {
     5: [Color(0xFF243B55), Color(0xFFFFD966), Color(0xFFFDFCF7)],
     6: [Color(0xFF7D0A0A), Color(0xFFBF3131), Color(0xFFF3EDC8)],
     7: [Color(0xFFAC1754), Color(0xFFE53888), Color(0xFFF7A8C4)],
-    // index 8 is custom – handled dynamically
+    // index 8 is custom – handled dynamically
   };
+
+  // Controllers for manual location input
+  final TextEditingController _latController = TextEditingController();
+  final TextEditingController _lngController = TextEditingController();
+  final TextEditingController _elevationController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadLocalPrefs();
+    _loadAdhanSettings();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _latController.dispose();
+    _lngController.dispose();
+    _elevationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLocalPrefs() async {
@@ -50,7 +73,14 @@ class _SettingsPageState extends State<SettingsPage> {
       enableNotifications = prefs.getBool('enableNotifications') ?? true;
       enableDailyHadith = prefs.getBool('enableDailyHadith') ?? false;
       highAccuracyCalc = prefs.getBool('highAccuracyCalc') ?? false;
-      selectedLanguage = prefs.getString('selectedLanguage') ?? 'English';
+      
+      // Ensure selectedLanguage is exactly one of our valid options
+      final storedLanguage = prefs.getString('selectedLanguage') ?? 'English';
+      if (storedLanguage == 'English' || storedLanguage == 'العربية') {
+        selectedLanguage = storedLanguage;
+      } else {
+        selectedLanguage = 'English'; // Default to English if invalid value
+      }
     });
   }
 
@@ -62,134 +92,666 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setString('selectedLanguage', selectedLanguage);
   }
 
+  Future<void> _loadAdhanSettings() async {
+    final notificationService = NotificationService();
+    setState(() {
+      _isAdhanEnabled = notificationService.isAdhanEnabled;
+      _adhanVolume = notificationService.adhanVolume;
+    });
+  }
+
+  Future<void> _loadData() async {
+    // Get settings data
+    final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    
+    // Set controller values
+    if (prefs.useManualLocation) {
+      _latController.text = prefs.manualLatitude.toString();
+      _lngController.text = prefs.manualLongitude.toString();
+    }
+    
+    if (prefs.useElevation) {
+      _elevationController.text = prefs.manualElevation.toString();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
     final prayerSettings = Provider.of<PrayerSettingsProvider>(context);
     final langProv = Provider.of<LanguageProvider>(context);
-    final loc = AppLocalizations.of(context)!; // localisation instance
+    final l10n = AppLocalizations.of(context)!;
+    final isSmallScreen = MediaQuery.of(context).size.width < 360;
+    final theme = Theme.of(context);
+
+    // All calculation methods
+    final calculationMethods = [
+      CalculationMethod.egyptian,
+      CalculationMethod.karachi,
+      CalculationMethod.north_america,
+      CalculationMethod.muslim_world_league,
+      CalculationMethod.moon_sighting_committee,
+      CalculationMethod.singapore,
+      CalculationMethod.turkey,
+      CalculationMethod.tehran,
+      CalculationMethod.qatar,
+      CalculationMethod.kuwait,
+      CalculationMethod.dubai,
+    ];
+
+    // Beautiful names for the methods
+    String methodName(CalculationMethod m) {
+      return m.name
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((s) => s.isEmpty ? '' : '${s[0].toUpperCase()}${s.substring(1)}')
+          .join(' ');
+    }
 
     return Scaffold(
-      appBar: AppBar(title: Text(loc.settings)),            // ← localised
-      body: ListView(
-        children: [
-          // ────────────────────────── APPEARANCE ───────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              loc.appearance,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onBackground,
-              ),
-            ),
-          ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                const Icon(Icons.dark_mode, size: 20),
-                const SizedBox(width: 10),
-                Text(loc.enableDarkMode),
-              ],
-            ),
-            value: themeNotifier.isDarkTheme,
-            onChanged: (_) => themeNotifier.toggleTheme(),
-          ),
-          if (!themeNotifier.isDarkTheme)
-            ListTile(
-              leading: const Icon(Icons.color_lens_outlined),
-              title: Text(loc.selectColorTheme),
-              subtitle: Row(
+      appBar: AppBar(
+        title: Text(l10n.settingsTitle),
+        elevation: 0,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
+      ),
+      body: SafeArea(
+        child: Consumer<PrayerSettingsProvider>(
+          builder: (context, prefs, child) {
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${loc.currentTheme} ${themeNotifier.selectedThemeIndex + 1}'),
-                  const SizedBox(width: 8),
-                  ..._themePreviewSwatches(themeNotifier.selectedThemeIndex, themeNotifier),
+                  // ────────────────────────── APPEARANCE ───────────────────────────
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.appearance,
+                    icon: Icons.palette_outlined,
+                    children: [
+                      _buildSettingTile(
+                        context,
+                        leading: themeNotifier.isDarkTheme 
+                          ? Icons.dark_mode_rounded 
+                          : Icons.light_mode_rounded,
+                        title: themeNotifier.isDarkTheme 
+                          ? l10n.enableLightMode 
+                          : l10n.enableDarkMode,
+                        trailing: Switch(
+                          value: themeNotifier.isDarkTheme,
+                          onChanged: (_) => themeNotifier.toggleTheme(),
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      if (!themeNotifier.isDarkTheme)
+                        _buildSettingTile(
+                          context,
+                          leading: Icons.color_lens_outlined,
+                          title: l10n.selectColorTheme,
+                          subtitle: '${l10n.currentTheme} ${themeNotifier.selectedThemeIndex + 1}',
+                          trailing: Wrap(
+                            spacing: 4,
+                            children: _themePreviewSwatches(
+                              themeNotifier.selectedThemeIndex, 
+                              themeNotifier
+                            ),
+                          ),
+                          onTap: _showSelectThemeDialog,
+                        ),
+                    ],
+                  ),
+
+                  // ──────────────────────── PRAYER SETTINGS ────────────────────────
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.calculationMethodTitle,
+                    icon: Icons.calculate_outlined,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: DropdownButtonFormField<CalculationMethod>(
+                          value: prayerSettings.calculationMethod,
+                          decoration: InputDecoration(
+                            labelText: l10n.calculationMethodLabel,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: theme.colorScheme.surface,
+                          ),
+                          onChanged: (CalculationMethod? value) {
+                            if (value != null) {
+                              prayerSettings.updateCalculationMethod(value);
+                            }
+                          },
+                          items: calculationMethods
+                              .map((m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(methodName(m),
+                                        style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Madhab (Asr calculation)
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.asrCalculationTitle,
+                    icon: Icons.access_time_filled_outlined,
+                    children: [
+                      RadioListTile<Madhab>(
+                        title: Text(l10n.shafiiLabel),
+                        subtitle: Text(l10n.shafiiDescription),
+                        value: Madhab.shafi,
+                        groupValue: prayerSettings.madhab,
+                        activeColor: theme.colorScheme.primary,
+                        onChanged: (Madhab? value) {
+                          if (value != null) {
+                            prayerSettings.updateMadhab(value);
+                          }
+                        },
+                      ),
+                      RadioListTile<Madhab>(
+                        title: Text(l10n.hanafiLabel),
+                        subtitle: Text(l10n.hanafiDescription),
+                        value: Madhab.hanafi,
+                        groupValue: prayerSettings.madhab,
+                        activeColor: theme.colorScheme.primary,
+                        onChanged: (Madhab? value) {
+                          if (value != null) {
+                            prayerSettings.updateMadhab(value);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // Prayer Adjustments
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.prayerTimeAdjustments,
+                    icon: Icons.tune_rounded,
+                    children: [
+                      _buildPrayerAdjustment(context, prefs, l10n.prayerFajr, prefs.fajrAdjustment),
+                      _buildPrayerAdjustment(context, prefs, l10n.prayerDhuhr, prefs.dhuhrAdjustment),
+                      _buildPrayerAdjustment(context, prefs, l10n.prayerAsr, prefs.asrAdjustment),
+                      _buildPrayerAdjustment(context, prefs, l10n.prayerMaghrib, prefs.maghribAdjustment),
+                      _buildPrayerAdjustment(context, prefs, l10n.prayerIsha, prefs.ishaAdjustment),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.restart_alt),
+                            label: Text(l10n.resetAdjustments),
+                            onPressed: () {
+                              prefs.resetAllAdjustments();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Location Settings
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.locationSettings,
+                    icon: Icons.location_on_outlined,
+                    children: [
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.my_location,
+                        title: l10n.manualLocation,
+                        subtitle: prefs.useManualLocation 
+                          ? "${prefs.manualLatitude.toStringAsFixed(4)}, ${prefs.manualLongitude.toStringAsFixed(4)}"
+                          : null,
+                        trailing: Switch(
+                          value: prefs.useManualLocation,
+                          onChanged: (v) {
+                            prefs.toggleUseManualLocation(v);
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.travel_explore_outlined,
+                        title: l10n.highAccuracyCalculation,
+                        subtitle: l10n.highAccuracySubtitle,
+                        trailing: Switch(
+                          value: highAccuracyCalc,
+                          onChanged: (v) {
+                            setState(() => highAccuracyCalc = v);
+                            // Actually apply the setting by toggling elevation usage
+                            prefs.toggleUseElevation(v);
+                            _saveLocalPrefs();
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.gps_fixed,
+                        title: l10n.frequentLocationUpdates,
+                        subtitle: l10n.frequentLocationSubtitle,
+                        trailing: Switch(
+                          value: prefs.frequentLocationUpdates,
+                          onChanged: (v) {
+                            prefs.toggleFrequentLocationUpdates(v);
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Time format & other settings
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.otherSettings,
+                    icon: Icons.settings_outlined,
+                    children: [
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.access_time_rounded,
+                        title: l10n.use24hFormat,
+                        trailing: Switch(
+                          value: prayerSettings.use24hFormat,
+                          onChanged: prayerSettings.toggle24hFormat,
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.notifications_active_outlined,
+                        title: l10n.enableNotifications,
+                        trailing: Switch(
+                          value: enableNotifications,
+                          onChanged: (v) {
+                            setState(() => enableNotifications = v);
+                            NotificationService().toggleNotifications(v);
+                            _saveLocalPrefs();
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.menu_book_outlined,
+                        title: l10n.enableDailyHadith,
+                        trailing: Switch(
+                          value: enableDailyHadith,
+                          onChanged: (v) {
+                            setState(() => enableDailyHadith = v);
+                            // Call hadith service to enable/disable
+                            _toggleDailyHadith(v);
+                            _saveLocalPrefs();
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Language Settings
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.languageTitle,
+                    icon: Icons.language_rounded,
+                    children: [
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.translate_rounded,
+                        title: l10n.selectLanguage,
+                        subtitle: selectedLanguage == 'English' ? 'English' : 'العربية',
+                        trailing: DropdownButton<String>(
+                          value: selectedLanguage, // This must match exactly one of the dropdown item values
+                          underline: Container(),
+                          items: ['English', 'العربية'].map((String lang) {
+                            return DropdownMenuItem<String>(
+                              value: lang,
+                              child: Text(lang),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                selectedLanguage = newValue;
+                              });
+                              if (newValue == 'English') {
+                                langProv.setLocale(const Locale('en'));
+                              } else {
+                                langProv.setLocale(const Locale('ar'));
+                              }
+                              _saveLocalPrefs();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Adhan Settings
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.adhanSettings,
+                    icon: Icons.volume_up_outlined,
+                    children: [
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.music_note_outlined,
+                        title: l10n.enableAdhan,
+                        trailing: Switch(
+                          value: _isAdhanEnabled,
+                          onChanged: (value) {
+                            setState(() {
+                              _isAdhanEnabled = value;
+                            });
+                            NotificationService().setAdhanEnabled(value);
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      if (_isAdhanEnabled)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.adhanVolume,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.volume_down_rounded,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: _adhanVolume,
+                                      min: 0,
+                                      max: 1.0,
+                                      divisions: 10,
+                                      activeColor: theme.colorScheme.primary,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _adhanVolume = value;
+                                        });
+                                        NotificationService().setAdhanVolume(value);
+                                      },
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.volume_up_rounded,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ],
+                              ),
+                              Center(
+                                child: OutlinedButton.icon(
+                                  icon: Icon(Icons.play_circle_outline_rounded),
+                                  label: Text(l10n.testAdhan),
+                                  onPressed: () {
+                                    AdhanService().playAdhanTest(_adhanVolume);
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.primary),
+                                    foregroundColor: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
                 ],
               ),
-              onTap: _showSelectThemeDialog,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // Build a styled settings section
+  Widget _buildSettingsSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    final theme = Theme.of(context);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onBackground,
+                  ),
+                ),
+              ],
             ),
-          const Divider(),
-
-          // ──────────────────────── PRAYER SETTINGS ────────────────────────
-          ListTile(
-            title: Text(loc.calculationMethod),
-            subtitle: Text(prayerSettings.calculationMethod.name.toUpperCase()),
-            onTap: _showCalculationMethodDialog,
           ),
-          ListTile(
-            title: Text(loc.madhab),
-            subtitle: Text(prayerSettings.madhab.name.toUpperCase()),
-            onTap: _showMadhabDialog,
-          ),
-          SwitchListTile(
-            title: Text(loc.use24HourFormat),
-            value: prayerSettings.use24hFormat,
-            onChanged: prayerSettings.toggle24hFormat,
-          ),
-          const Divider(),
-
-          // ────────────── NOTIFICATIONS / HADITH / ACCURACY ───────────────
-          SwitchListTile(
-            title: Text(loc.enableNotifications),
-            value: enableNotifications,
-            onChanged: (v) {
-              setState(() => enableNotifications = v);
-              _saveLocalPrefs();
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.enableDailyHadith),
-            value: enableDailyHadith,
-            onChanged: (v) {
-              setState(() => enableDailyHadith = v);
-              _saveLocalPrefs();
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.highAccuracyCalculation),
-            subtitle: const Text('Adds extra location checks & fine‑tuned method'),
-            value: highAccuracyCalc,
-            onChanged: (v) {
-              setState(() => highAccuracyCalc = v);
-              _saveLocalPrefs();
-            },
-          ),
-          const Divider(),
-
-          // ─────────────────────────── LANGUAGE ────────────────────────────
-          ListTile(
-            title: Text(loc.language),
-            subtitle: Text(
-              langProv.locale.languageCode == 'ar'
-                  ? loc.languageArabic
-                  : loc.languageEnglish,
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
-            onTap: _showLanguageDialog,
-          ),
-          const Divider(),
-
-          // ─────────────────────────── ABOUT ───────────────────────────────
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(loc.aboutApp),
-            subtitle: const Text('Advanced Islamic App with multiple features'),
-            onTap: _showAbout,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ───────────────────── THEME SELECTION DIALOG ────────────────────────
+  // Build a styled setting tile
+  Widget _buildSettingTile(
+    BuildContext context, {
+    required IconData leading,
+    required String title,
+    String? subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    final theme = Theme.of(context);
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  leading,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Prayer time adjustment slider
+  Widget _buildPrayerAdjustment(
+    BuildContext context,
+    PrayerSettingsProvider prefs,
+    String prayer,
+    int currentValue,
+  ) {
+    final theme = Theme.of(context);
+    // Map prayer name to lowercase key for provider
+    String prayerKey = prayer.toLowerCase();
+    if (prayer == AppLocalizations.of(context)!.prayerFajr) prayerKey = 'fajr';
+    if (prayer == AppLocalizations.of(context)!.prayerDhuhr) prayerKey = 'dhuhr';
+    if (prayer == AppLocalizations.of(context)!.prayerAsr) prayerKey = 'asr';
+    if (prayer == AppLocalizations.of(context)!.prayerMaghrib) prayerKey = 'maghrib';
+    if (prayer == AppLocalizations.of(context)!.prayerIsha) prayerKey = 'isha';
+    
+    // Get the appropriate icon based on prayer
+    IconData prayerIcon = Icons.access_time;
+    if (prayerKey == 'fajr') prayerIcon = Icons.wb_twilight_rounded;
+    else if (prayerKey == 'dhuhr') prayerIcon = Icons.wb_sunny_rounded;
+    else if (prayerKey == 'asr') prayerIcon = Icons.wb_cloudy_rounded;
+    else if (prayerKey == 'maghrib') prayerIcon = Icons.nightlight_round;
+    else if (prayerKey == 'isha') prayerIcon = Icons.nightlight;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  prayerIcon,
+                  color: theme.colorScheme.secondary,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "$prayer ${AppLocalizations.of(context)?.adjustmentMinutes ?? 'Adjustment'}",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "$currentValue min",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: currentValue.toDouble(),
+            min: -15,
+            max: 15,
+            divisions: 30,
+            label: "$currentValue min",
+            activeColor: theme.colorScheme.primary,
+            onChanged: (value) {
+              prefs.updatePrayerAdjustment(prayerKey, value.toInt());
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────── THEME SELECTION DIALOG ────────────────────────
   void _showSelectThemeDialog() async {
     final themeNotifier = Provider.of<ThemeNotifier>(context, listen: false);
-    final loc = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
     final chosenIndex = await showDialog<int>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: Text(loc.chooseLightTheme),
+        title: Text(l10n.chooseLightTheme),
         children: [
           _themeOption(ctx, 0, 'Original Brand', themeNotifier),
           _themeOption(ctx, 1, 'Soft Slate & Periwinkle', themeNotifier),
@@ -199,7 +761,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _themeOption(ctx, 5, 'Midnight Blue & Soft Gold', themeNotifier),
           _themeOption(ctx, 6, '#7D0A0A & #BF3131', themeNotifier),
           _themeOption(ctx, 7, '#AC1754 & #E53888', themeNotifier),
-          _themeOption(ctx, 8, loc.customTheme, themeNotifier),
+          _themeOption(ctx, 8, l10n.customTheme, themeNotifier),
         ],
       ),
     );
@@ -252,7 +814,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       );
 
-  // ────────────────────────── CUSTOM THEME DIALOG ────────────────────────
+  // ────────────────────────── CUSTOM THEME DIALOG ────────────────────────
   void _showCustomThemeDialog() {
     final tn = Provider.of<ThemeNotifier>(context, listen: false);
 
@@ -365,100 +927,16 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // ──────────────────── CALC METHOD / MADHAB / LANG / ABOUT ──────────────
-  void _showCalculationMethodDialog() async {
-    final ps = Provider.of<PrayerSettingsProvider>(context, listen: false);
-    final chosen = await showDialog<CalculationMethod>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Select Calculation Method'),
-        children: [
-          _methodOption(ctx, 'Muslim World League',
-              CalculationMethod.muslim_world_league),
-          _methodOption(ctx, 'Egyptian', CalculationMethod.egyptian),
-          _methodOption(ctx, 'Karachi', CalculationMethod.karachi),
-          _methodOption(ctx, 'Umm al-Qura', CalculationMethod.umm_al_qura),
-          _methodOption(ctx, 'Moonsighting Committee',
-              CalculationMethod.moon_sighting_committee),
-          _methodOption(ctx, 'North America (ISNA)', CalculationMethod.north_america),
-          _methodOption(ctx, 'Dubai', CalculationMethod.dubai),
-          _methodOption(ctx, 'Qatar', CalculationMethod.qatar),
-          _methodOption(ctx, 'Kuwait', CalculationMethod.kuwait),
-          _methodOption(ctx, 'Turkey', CalculationMethod.turkey),
-          _methodOption(ctx, 'Tehran', CalculationMethod.tehran),
-          _methodOption(ctx, 'Other', CalculationMethod.other),
-        ],
-      ),
-    );
-    if (chosen != null) ps.updateCalculationMethod(chosen);
-  }
-
-  SimpleDialogOption _methodOption(
-          BuildContext ctx, String label, CalculationMethod m) =>
-      SimpleDialogOption(
-        child: Text(label),
-        onPressed: () => Navigator.pop(ctx, m),
-      );
-
-  void _showMadhabDialog() async {
-    final ps = Provider.of<PrayerSettingsProvider>(context, listen: false);
-    final chosen = await showDialog<Madhab>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Select Madhab'),
-        children: [
-          SimpleDialogOption(
-            child: const Text('Shafi'),
-            onPressed: () => Navigator.pop(ctx, Madhab.shafi),
-          ),
-          SimpleDialogOption(
-            child: const Text('Hanafi'),
-            onPressed: () => Navigator.pop(ctx, Madhab.hanafi),
-          ),
-        ],
-      ),
-    );
-    if (chosen != null) ps.updateMadhab(chosen);
-  }
-
-  void _showLanguageDialog() async {
-    final loc = AppLocalizations.of(context)!;
-    final chosen = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text('Select Language'),
-        children: [
-          SimpleDialogOption(
-            child: Text(loc.languageEnglish),
-            onPressed: () => Navigator.pop(ctx, 'en'),
-          ),
-          SimpleDialogOption(
-            child: Text(loc.languageArabic),
-            onPressed: () => Navigator.pop(ctx, 'ar'),
-          ),
-        ],
-      ),
-    );
-    if (chosen != null) {
-      Provider.of<LanguageProvider>(context, listen: false)
-          .setLocale(Locale(chosen));
-      setState(() => selectedLanguage =
-          chosen == 'ar' ? loc.languageArabic : loc.languageEnglish);
-      _saveLocalPrefs();
-    }
-  }
-
-  void _showAbout() {
-    final loc = AppLocalizations.of(context)!;
-    showAboutDialog(
-      context: context,
-      applicationName: loc.appTitle,
-      applicationVersion: '2.0.0',
-      children: const [
-        Text(
-          'This app provides advanced features for prayer times, Azkār, Qibla, Tasbih, and more.',
-        ),
-      ],
-    );
+  // Add methods to handle notifications and daily hadith
+  Future<void> _toggleDailyHadith(bool enabled) async {
+    // This would typically call a hadith service that you might implement
+    // For now, we'll just save the preference
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('enableDailyHadith', enabled);
+    
+    // If you have a HadithService, you would call it like:
+    // await HadithService().setEnabled(enabled);
+    
+    print('[Settings] Daily hadith ${enabled ? 'enabled' : 'disabled'}');
   }
 }

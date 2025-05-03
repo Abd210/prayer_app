@@ -13,6 +13,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -20,6 +21,7 @@ import 'statistcs.dart';
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
 import '../services/notification_service.dart';
+import '../models/prayer_adjustments.dart';
 
 /// ————————————————— Animated wave background —————————————————
 class AnimatedWaveBackground extends StatefulWidget {
@@ -97,6 +99,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     with WidgetsBindingObserver {
   Position? _pos;
   String _city = '...';
+  bool _permissionError = false;
 
   final _cachedTimes = <int, PrayerTimes?>{};
   final _cachedSunnah = <int, SunnahTimes?>{};
@@ -176,7 +179,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     _cachedSunnah.clear();
     _preload();
     _updateNext();
-        /*  🔹 NEW — re‑schedule notifications so they
+        /*  🔹 NEW — re‑schedule notifications so they
         match the *current* calculation settings            */
     _scheduleToday();
   }
@@ -278,7 +281,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       final params = prefs.calculationMethod.getParameters()
         ..madhab = prefs.madhab
         ..adjustments =
-            PrayerAdjustments(fajr: 2, dhuhr: 2, asr: 2, maghrib: 2, isha: 2);
+            PrayerAdjustments(fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0);
       final coords = Coordinates(_pos!.latitude, _pos!.longitude);
       final pt = PrayerTimes(coords, DateComponents.from(date), params);
       _cachedTimes[off] = pt;
@@ -359,6 +362,8 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
 
   // —————————————————— notifications
   Future<void> _scheduleToday() async {
+    if (kIsWeb) return; // Skip on web platform
+    
     final pt = _cachedTimes[0];
     if (pt == null) return;
 
@@ -384,12 +389,13 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     for (final e in times.entries) {
       final t = e.value.toLocal();
       if (t.isAfter(now)) {
+        final prayerName = e.key.name.toUpperCase();
         await NotificationService().scheduleNotification(
           id: ids[e.key]!,
           title: l10n.prayerTimeTitle,
-          body:
-              l10n.prayerNotificationBody(e.key.name.toUpperCase(), _city),
+          body: l10n.prayerNotificationBody(prayerName, _city),
           scheduledDate: t,
+          prayerName: prayerName,
         );
       }
     }
@@ -399,14 +405,18 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final isSmallScreen = screenWidth < 360;
 
     return AnimatedWaveBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: Text(_city),
+          title: Text(_city, style: TextStyle(fontSize: isSmallScreen ? 16 : 18)),
           actions: [
-            IconButton(
+            if (!kIsWeb) IconButton(
               icon: const Icon(Icons.notifications_active),
               tooltip: l10n.testNotification,
               onPressed: () => NotificationService().sendTestNotification(),
@@ -427,31 +437,43 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: _pos == null
             ? _loadingView(l10n)
-            : Column(
-                children: [
-                  _nextPrayerCard(context, l10n),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.today),
-                      label: Text(l10n.returnToToday,
-                          style: const TextStyle(color: Colors.white)),
-                      onPressed: () {
-                        setState(() => _currentIndex = _pageCenterIndex);
-                        _pager.jumpToPage(_pageCenterIndex);
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pager,
-                      itemCount: _daysRange * 2 + 1,
-                      onPageChanged: (i) => setState(() => _currentIndex = i),
-                      itemBuilder: (_, idx) =>
-                          _dayView(idx - _pageCenterIndex, l10n),
-                    ),
-                  ),
-                ],
+            : SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Column(
+                      children: [
+                        _nextPrayerCard(context, l10n, constraints.maxWidth),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: isSmallScreen ? 4 : 8,
+                            horizontal: isSmallScreen ? 8 : 16,
+                          ),
+                          child: ElevatedButton.icon(
+                            icon: Icon(Icons.today, size: isSmallScreen ? 18 : 24),
+                            label: Text(l10n.returnToToday,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isSmallScreen ? 12 : 14,
+                                )),
+                            onPressed: () {
+                              setState(() => _currentIndex = _pageCenterIndex);
+                              _pager.jumpToPage(_pageCenterIndex);
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: PageView.builder(
+                            controller: _pager,
+                            itemCount: _daysRange * 2 + 1,
+                            onPageChanged: (i) => setState(() => _currentIndex = i),
+                            itemBuilder: (_, idx) =>
+                                _dayView(idx - _pageCenterIndex, l10n, constraints.maxWidth),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                ),
               ),
       ),
     );
@@ -472,7 +494,8 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         ),
       );
 
-  Widget _nextPrayerCard(BuildContext ctx, AppLocalizations l10n) {
+  Widget _nextPrayerCard(BuildContext ctx, AppLocalizations l10n, double maxWidth) {
+    final isSmallScreen = maxWidth < 360;
     final h = _untilNext.inHours;
     final m = _untilNext.inMinutes % 60;
     final s = _untilNext.inSeconds % 60;
@@ -480,8 +503,8 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(isSmallScreen ? 8 : 16),
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -491,27 +514,31 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             l10n.nextPrayerLabel(_nextName),
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+                fontSize: isSmallScreen ? 16 : 18, 
+                fontWeight: FontWeight.bold, 
+                color: Colors.white),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: isSmallScreen ? 4 : 6),
           Text(l10n.startsIn(countdown),
-              style: const TextStyle(fontSize: 16, color: Colors.white)),
-          const SizedBox(height: 12),
+              style: TextStyle(fontSize: isSmallScreen ? 14 : 16, color: Colors.white)),
+          SizedBox(height: isSmallScreen ? 8 : 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: _progress,
               backgroundColor: Colors.white.withOpacity(.3),
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 6,
+              minHeight: isSmallScreen ? 4 : 6,
             ),
           ),
         ],
@@ -519,7 +546,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     );
   }
 
-  Widget _dayView(int offset, AppLocalizations l10n) {
+  Widget _dayView(int offset, AppLocalizations l10n, double maxWidth) {
     final pt = _cachedTimes[offset];
     final st = _cachedSunnah[offset];
     if (pt == null || st == null) {
@@ -532,45 +559,154 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
 
     final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
     final fmt = prefs.use24hFormat ? 'HH:mm' : 'hh:mm a';
+    
+    // Adjust sizes based on screen width
+    final isSmallScreen = maxWidth < 360;
+    final double titleFontSize = isSmallScreen ? 15.0 : 17.0;
+    final double bodyFontSize = isSmallScreen ? 13.0 : 15.0;
+    final double padding = isSmallScreen ? 12.0 : 16.0;
 
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          // This ensures the content takes at least the full height of the container
+          minHeight: MediaQuery.of(context).size.height - (isSmallScreen ? 200 : 220),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dateStr, 
+                style: TextStyle(
+                  fontSize: bodyFontSize, 
+                  fontWeight: FontWeight.bold
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: isSmallScreen ? 8 : 12),
+              _row(l10n.prayerFajr, pt.fajr, fmt, Icons.wb_twighlight, maxWidth),
+              _row(l10n.prayerSunrise, pt.sunrise, fmt, Icons.wb_sunny, maxWidth),
+              _row(l10n.prayerDhuhr, pt.dhuhr, fmt, Icons.wb_sunny_outlined, maxWidth),
+              _row(l10n.prayerAsr, pt.asr, fmt, Icons.filter_drama, maxWidth),
+              _row(l10n.prayerMaghrib, pt.maghrib, fmt, Icons.nightlight_round, maxWidth),
+              _row(l10n.prayerIsha, pt.isha, fmt, Icons.nightlight, maxWidth),
+              Divider(height: isSmallScreen ? 24 : 32),
+              Text(l10n.sunnahTimes, 
+                style: TextStyle(
+                  fontSize: titleFontSize, 
+                  fontWeight: FontWeight.bold
+                )
+              ),
+              SizedBox(height: isSmallScreen ? 6 : 8),
+              _row(l10n.middleNight, st.middleOfTheNight, fmt, Icons.dark_mode, maxWidth),
+              _row(l10n.lastThirdNight, st.lastThirdOfTheNight, fmt, Icons.mode_night, maxWidth),
+              SizedBox(height: isSmallScreen ? 16 : 24),
+              Text(l10n.tipOfDay, 
+                style: TextStyle(
+                  fontSize: bodyFontSize, 
+                  fontWeight: FontWeight.w500
+                )
+              ),
+              SizedBox(height: isSmallScreen ? 2 : 4),
+              Text(_randomTip,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 12 : 14, 
+                    fontStyle: FontStyle.italic
+                  )
+              ),
+              // Add bottom padding for scrolling
+              SizedBox(height: isSmallScreen ? 16 : 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, DateTime t, String fmt, IconData icon, double maxWidth) {
+    final isSmallScreen = maxWidth < 360;
+    final textSize = isSmallScreen ? 13.0 : 15.0;
+    final iconSize = isSmallScreen ? 18.0 : 22.0;
+    
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 3 : 5),
+      child: Row(
         children: [
-          Text(dateStr, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          _row(l10n.prayerFajr, pt.fajr, fmt, Icons.wb_twighlight),
-          _row(l10n.prayerSunrise, pt.sunrise, fmt, Icons.wb_sunny),
-          _row(l10n.prayerDhuhr, pt.dhuhr, fmt, Icons.wb_sunny_outlined),
-          _row(l10n.prayerAsr, pt.asr, fmt, Icons.filter_drama),
-          _row(l10n.prayerMaghrib, pt.maghrib, fmt, Icons.nightlight_round),
-          _row(l10n.prayerIsha, pt.isha, fmt, Icons.nightlight),
-          const Divider(height: 32),
-          Text(l10n.sunnahTimes, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          _row(l10n.middleNight, st.middleOfTheNight, fmt, Icons.dark_mode),
-          _row(l10n.lastThirdNight, st.lastThirdOfTheNight, fmt, Icons.mode_night),
-          const SizedBox(height: 24),
-          Text(l10n.tipOfDay, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(_randomTip,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic)),
+          Icon(icon, 
+            color: Theme.of(context).colorScheme.primary, 
+            size: iconSize
+          ),
+          SizedBox(width: isSmallScreen ? 6 : 8),
+          Expanded(
+            child: Text(
+              label, 
+              style: TextStyle(
+                fontWeight: FontWeight.w500, 
+                fontSize: textSize
+              ),
+              overflow: TextOverflow.ellipsis,
+            )
+          ),
+          Text(
+            DateFormat(fmt).format(t.toLocal()), 
+            style: TextStyle(fontSize: textSize),
+          ),
         ],
       ),
     );
   }
 
-  Widget _row(String label, DateTime t, String fmt, IconData icon) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            Icon(icon, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500))),
-            Text(DateFormat(fmt).format(t.toLocal())),
-          ],
-        ),
-      );
+  // Helper method to get day offset for page index
+  int _dayOffset(int pageIndex) {
+    return pageIndex - _pageCenterIndex;
+  }
+
+  Future<void> _updatePrayerTimes() async {
+    Position? position;
+    
+    // Try getting manual location first if enabled
+    position = await LocationService.getManualLocationIfEnabled();
+    
+    // If no manual location is set or it's not enabled, get current location
+    if (position == null) {
+      // Use frequent updates if enabled in settings
+      final prefs = await SharedPreferences.getInstance();
+      final frequentUpdates = prefs.getBool('frequentLocationUpdates') ?? false;
+      position = await LocationService.determinePosition(frequentUpdates: frequentUpdates);
+    }
+
+    if (position == null) {
+      setState(() {
+        _permissionError = true;
+      });
+      return;
+    }
+
+    // Clear any permission errors if we got here
+    if (_permissionError) {
+      setState(() {
+        _permissionError = false;
+      });
+    }
+    
+    // Update position and refresh calculations
+    _pos = position;
+    
+    // Clear cached prayer times to force recalculation with new settings
+    _cachedTimes.clear();
+    _cachedSunnah.clear();
+    
+    // Use existing methods to update calculations
+    _preload();
+    _updateNext();
+    
+    // Schedule notifications
+    _scheduleToday();
+    
+    setState(() {});
+  }
 }

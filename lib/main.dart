@@ -15,7 +15,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   /// Request notification permission on Android
-  await requestNotificationPermission();
+  if (!kIsWeb) {
+    await requestNotificationPermission();
+  }
 
   await NotificationService().init();
 
