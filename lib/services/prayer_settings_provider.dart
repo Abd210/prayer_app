@@ -315,4 +315,15 @@ class PrayerSettingsProvider extends ChangeNotifier {
     _saveToPrefs();      // Save first to ensure settings are stored
     notifyListeners();   // Then notify consumers (PrayerTimesPage)
   }
+
+  Future<bool> isFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstTime = prefs.getBool('is_first_time') ?? true;
+    
+    if (isFirstTime) {
+      await prefs.setBool('is_first_time', false);
+    }
+    
+    return isFirstTime;
+  }
 }

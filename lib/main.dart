@@ -8,11 +8,20 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'services/notification_service.dart';
 import 'services/language_provider.dart';
 import 'services/prayer_settings_provider.dart';
+import 'services/analytics_service.dart';
+import 'services/compass_service.dart';
 import 'theme/theme_notifier.dart';
 import 'pages/splash_screen.dart';   // or MainNavScreen()
+import 'pages/onboarding_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  /// Initialize analytics service
+  await AnalyticsService().init();
+  
+  /// Initialize compass service
+  await CompassService().init();
 
   /// Request notification permission on Android
   if (!kIsWeb) {
@@ -31,7 +40,6 @@ void main() async {
       child: const MyApp(),
     ),
   );
-
 }
 
 Future<void> requestNotificationPermission() async {
@@ -50,6 +58,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
     final lang = Provider.of<LanguageProvider>(context);
+    final prayerSettings = Provider.of<PrayerSettingsProvider>(context);
 
     return MaterialApp(
       title: 'Advanced Islamic App',
@@ -60,7 +69,24 @@ class MyApp extends StatelessWidget {
       theme: themeNotifier.lightTheme,
       darkTheme: themeNotifier.darkTheme,
       themeMode: themeNotifier.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
-      home: MainNavScreen(),
+      home: FutureBuilder<bool>(
+        future: prayerSettings.isFirstTime(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          
+          final isFirstTime = snapshot.data ?? true;
+          
+          if (isFirstTime) {
+            return const OnboardingPage();
+          } else {
+            return const MainNavScreen();
+          }
+        },
+      ),
     );
   }
 }

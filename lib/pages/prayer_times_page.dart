@@ -17,7 +17,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-import 'statistcs.dart';
+import 'statistics.dart';
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
 import '../services/notification_service.dart';
@@ -520,25 +520,36 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            l10n.nextPrayerLabel(_nextName),
-            style: TextStyle(
-                fontSize: isSmallScreen ? 16 : 18, 
-                fontWeight: FontWeight.bold, 
-                color: Colors.white),
-            textAlign: TextAlign.center,
+          Semantics(
+            label: "${l10n.nextPrayerLabel(_nextName)}",
+            child: Text(
+              l10n.nextPrayerLabel(_nextName),
+              style: TextStyle(
+                  fontSize: isSmallScreen ? 16 : 18, 
+                  fontWeight: FontWeight.bold, 
+                  color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
           ),
           SizedBox(height: isSmallScreen ? 4 : 6),
-          Text(l10n.startsIn(countdown),
-              style: TextStyle(fontSize: isSmallScreen ? 14 : 16, color: Colors.white)),
+          Semantics(
+            label: l10n.startsIn(countdown),
+            child: Text(
+              l10n.startsIn(countdown),
+              style: TextStyle(fontSize: isSmallScreen ? 14 : 16, color: Colors.white)
+            ),
+          ),
           SizedBox(height: isSmallScreen ? 8 : 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: _progress,
-              backgroundColor: Colors.white.withOpacity(.3),
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: isSmallScreen ? 4 : 6,
+            child: Semantics(
+              label: "Prayer countdown progress: ${(_progress * 100).toInt()}%",
+              child: LinearProgressIndicator(
+                value: _progress,
+                backgroundColor: Colors.white.withOpacity(.3),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                minHeight: isSmallScreen ? 4 : 6,
+              ),
             ),
           ),
         ],

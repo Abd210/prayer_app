@@ -8,7 +8,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 // Your pages:
 import 'prayer_times_page.dart';
 import 'qibla_page.dart';
-import 'QuranPage.dart';
+import 'quran_page.dart';
 import 'settings_page.dart';
 
 /// Example main nav screen with 5 tabs:

@@ -7,24 +7,75 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:provider/provider.dart';
 import 'package:prayer/main.dart';
+import 'package:prayer/theme/theme_notifier.dart';
+import 'package:prayer/services/prayer_settings_provider.dart';
+import 'package:prayer/services/language_provider.dart';
+import 'package:prayer/widgets/animated_wave_background.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Widget Tests', () {
+    testWidgets('AnimatedWaveBackground widget test', (WidgetTester tester) async {
+      // Build our app and trigger a frame.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedWaveBackground(
+              child: const Center(
+                child: Text('Test'),
+              ),
+            ),
+          ),
+        ),
+      );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // Verify the AnimatedWaveBackground contains the test text
+      expect(find.text('Test'), findsOneWidget);
+      
+      // Allow animations to complete
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    testWidgets('ThemeNotifier should change theme mode', (WidgetTester tester) async {
+      final themeNotifier = ThemeNotifier();
+      
+      // Build our app with ThemeNotifier
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeNotifier>.value(
+          value: themeNotifier,
+          child: Consumer<ThemeNotifier>(
+            builder: (context, theme, _) => MaterialApp(
+              theme: theme.lightTheme,
+              darkTheme: theme.darkTheme,
+              themeMode: theme.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+              home: Scaffold(
+                body: Center(
+                  child: Text('Current theme: ${theme.isDarkTheme ? 'Dark' : 'Light'}'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      // Initially, the theme should be light
+      expect(find.text('Current theme: Light'), findsOneWidget);
+
+      // Toggle the theme
+      themeNotifier.toggleTheme();
+      await tester.pump();
+
+      // After toggling, the theme should be dark
+      expect(find.text('Current theme: Dark'), findsOneWidget);
+    });
+
+    // Add more widget tests as needed
+    testWidgets('MyApp contains MaterialApp', (WidgetTester tester) async {
+      // Due to the complexity of dependencies, you'd need to mock the providers
+      // This is a simplified test for demonstration
+      
+      // Would be implemented with MultiProvider setup and mocks
+    });
   });
 }

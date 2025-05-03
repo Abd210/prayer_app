@@ -28,7 +28,7 @@ class _StatisticsPageState extends State<StatisticsPage>
   
   // Heat map data
   Map<DateTime, int> _heatMapData = {};
-
+  
   /* selection */
   DateTime? _selectedDay; // for daily detail
 
@@ -200,25 +200,25 @@ class _StatisticsPageState extends State<StatisticsPage>
                   ],
                 ),
                 child: TabBar(
-                      controller: _tabCtrl,
+                  controller: _tabCtrl,
                   labelColor: theme.colorScheme.primary,
                   unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
                   indicatorColor: theme.colorScheme.primary,
                   indicatorWeight: 3,
-                      tabs: [
-                        Tab(text: loc.tabDaily.toUpperCase()),
-                        Tab(text: loc.tabWeekly.toUpperCase()),
-                        Tab(text: loc.tabMonthly.toUpperCase()),
-                      ],
+                  tabs: [
+                    Tab(text: loc.tabDaily.toUpperCase()),
+                    Tab(text: loc.tabWeekly.toUpperCase()),
+                    Tab(text: loc.tabMonthly.toUpperCase()),
+                  ],
                 ),
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabCtrl,
-                        children: [
-                          _dailyView(context, loc),
-                          _periodView(context, loc, Timeframe.weekly),
-                          _periodView(context, loc, Timeframe.monthly),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabCtrl,
+                  children: [
+                    _dailyView(context, loc),
+                    _periodView(context, loc, Timeframe.weekly),
+                    _periodView(context, loc, Timeframe.monthly),
                   ],
                 ),
               ),
@@ -233,7 +233,7 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   Widget _buildStatsSummary(BuildContext ctx, AppLocalizations loc) {
     final theme = Theme.of(ctx);
-
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(bottom: 24),
@@ -633,7 +633,7 @@ class _StatisticsPageState extends State<StatisticsPage>
       ],
     );
   }
-
+  
   Widget _buildWeeklyInsights(BuildContext context) {
     final theme = Theme.of(context);
     
@@ -699,7 +699,7 @@ class _StatisticsPageState extends State<StatisticsPage>
   
   Widget _buildMonthlyInsights(BuildContext context) {
     final theme = Theme.of(context);
-
+    
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
@@ -754,7 +754,7 @@ class _StatisticsPageState extends State<StatisticsPage>
       ),
     );
   }
-
+  
   Widget _buildMonthlyProgressChart(ThemeData theme) {
     return SizedBox(
       height: 140,
@@ -939,24 +939,24 @@ class _StatisticsPageState extends State<StatisticsPage>
             ),
             const SizedBox(height: 16),
             SizedBox(
-          height: 220,
-          child: LineChart(
-            LineChartData(
-              minY: 0,
-              maxY: 100,
-              lineTouchData: LineTouchData(
-                touchCallback: (evt, res) {
-                  if (evt is FlTapUpEvent &&
-                      res != null &&
-                      res.lineBarSpots != null &&
-                      tf == Timeframe.daily &&
-                      onTap != null) {
-                    final x = res.lineBarSpots!.first.x;
-                    final d = first.add(Duration(days: x.toInt()));
-                    onTap(d);
-                  }
-                },
-                touchTooltipData: LineTouchTooltipData(
+              height: 220,
+              child: LineChart(
+                LineChartData(
+                  minY: 0,
+                  maxY: 100,
+                  lineTouchData: LineTouchData(
+                    touchCallback: (evt, res) {
+                      if (evt is FlTapUpEvent &&
+                          res != null &&
+                          res.lineBarSpots != null &&
+                          tf == Timeframe.daily &&
+                          onTap != null) {
+                        final x = res.lineBarSpots!.first.x;
+                        final d = first.add(Duration(days: x.toInt()));
+                        onTap(d);
+                      }
+                    },
+                    touchTooltipData: LineTouchTooltipData(
                       tooltipBgColor: t.colorScheme.surface,
                       tooltipRoundedRadius: 12,
                       tooltipPadding: const EdgeInsets.all(10),
@@ -964,13 +964,13 @@ class _StatisticsPageState extends State<StatisticsPage>
                         color: t.colorScheme.outline.withOpacity(0.2),
                         width: 1,
                       ),
-                  getTooltipItems: (touched) => touched.map((pt) {
-                    final pct = pt.y.toStringAsFixed(1);
-                    final date =
-                        first.add(Duration(days: pt.x.toInt()));
-                    final label = switch (tf) {
+                      getTooltipItems: (touched) => touched.map((pt) {
+                        final pct = pt.y.toStringAsFixed(1);
+                        final date =
+                            first.add(Duration(days: pt.x.toInt()));
+                        final label = switch (tf) {
                           Timeframe.daily   => DateFormat('d MMM').format(date),
-                      Timeframe.weekly  => '${loc.weekShort}${DateFormat('w').format(date)}',
+                          Timeframe.weekly  => '${loc.weekShort}${DateFormat('w').format(date)}',
                           Timeframe.monthly => DateFormat('MMM yy').format(date),
                         };
                         return LineTooltipItem(
@@ -981,9 +981,9 @@ class _StatisticsPageState extends State<StatisticsPage>
                             fontSize: 13,
                           ),
                         );
-                  }).toList(),
-                ),
-              ),
+                      }).toList(),
+                    ),
+                  ),
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: _bottomTitles(t, first, tf),
@@ -1021,11 +1021,11 @@ class _StatisticsPageState extends State<StatisticsPage>
                     ),
                   ),
                   borderData: FlBorderData(show: false),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  barWidth: 3,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: spots,
+                      isCurved: true,
+                      barWidth: 3,
                       dotData: FlDotData(
                         show: true,
                         getDotPainter: (spot, percentage, bar, index) {
@@ -1040,30 +1040,30 @@ class _StatisticsPageState extends State<StatisticsPage>
                       color: isPrimary ? t.colorScheme.primary : t.colorScheme.secondary,
                       belowBarData: BarAreaData(
                         show: true,
-                  gradient: LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                    colors: [
+                          colors: [
                             (isPrimary ? t.colorScheme.primary : t.colorScheme.secondary)
                                 .withOpacity(0.3),
                             (isPrimary ? t.colorScheme.primary : t.colorScheme.secondary)
                                 .withOpacity(0.05),
                           ],
                         ),
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-          ),
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOut,
+              ),
             ),
           ],
         ),
       ),
     );
   }
-
+  
   String _getTimeframeTitle(Timeframe tf) {
     switch (tf) {
       case Timeframe.daily:
@@ -1081,8 +1081,8 @@ class _StatisticsPageState extends State<StatisticsPage>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       shadowColor: Colors.black26,
-        child: SizedBox(
-          height: 160,
+      child: SizedBox(
+        height: 160,
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

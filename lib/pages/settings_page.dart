@@ -123,6 +123,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final l10n = AppLocalizations.of(context)!;
     final isSmallScreen = MediaQuery.of(context).size.width < 360;
     final theme = Theme.of(context);
+    final textScaleFactor = MediaQuery.of(context).textScaleFactor;
 
     // All calculation methods
     final calculationMethods = [
@@ -205,8 +206,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     context,
                     title: l10n.calculationMethodTitle,
                     icon: Icons.calculate_outlined,
-                    children: [
-                      Padding(
+        children: [
+          Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         child: DropdownButtonFormField<CalculationMethod>(
                           value: prayerSettings.calculationMethod,
@@ -240,7 +241,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     context,
                     title: l10n.asrCalculationTitle,
                     icon: Icons.access_time_filled_outlined,
-                    children: [
+              children: [
                       RadioListTile<Madhab>(
                         title: Text(l10n.shafiiLabel),
                         subtitle: Text(l10n.shafiiDescription),
@@ -361,8 +362,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         leading: Icons.access_time_rounded,
                         title: l10n.use24hFormat,
                         trailing: Switch(
-                          value: prayerSettings.use24hFormat,
-                          onChanged: prayerSettings.toggle24hFormat,
+            value: prayerSettings.use24hFormat,
+            onChanged: prayerSettings.toggle24hFormat,
                           activeColor: theme.colorScheme.primary,
                         ),
                       ),
@@ -371,12 +372,12 @@ class _SettingsPageState extends State<SettingsPage> {
                         leading: Icons.notifications_active_outlined,
                         title: l10n.enableNotifications,
                         trailing: Switch(
-                          value: enableNotifications,
-                          onChanged: (v) {
-                            setState(() => enableNotifications = v);
+            value: enableNotifications,
+            onChanged: (v) {
+              setState(() => enableNotifications = v);
                             NotificationService().toggleNotifications(v);
-                            _saveLocalPrefs();
-                          },
+              _saveLocalPrefs();
+            },
                           activeColor: theme.colorScheme.primary,
                         ),
                       ),
@@ -385,13 +386,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         leading: Icons.menu_book_outlined,
                         title: l10n.enableDailyHadith,
                         trailing: Switch(
-                          value: enableDailyHadith,
-                          onChanged: (v) {
-                            setState(() => enableDailyHadith = v);
+            value: enableDailyHadith,
+            onChanged: (v) {
+              setState(() => enableDailyHadith = v);
                             // Call hadith service to enable/disable
                             _toggleDailyHadith(v);
-                            _saveLocalPrefs();
-                          },
+              _saveLocalPrefs();
+            },
                           activeColor: theme.colorScheme.primary,
                         ),
                       ),
@@ -605,53 +606,58 @@ class _SettingsPageState extends State<SettingsPage> {
     VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
+    final textScaleFactor = MediaQuery.of(context).textScaleFactor;
     
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+      child: Semantics(
+        button: onTap != null,
+        label: title + (subtitle != null ? ", $subtitle" : ""),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    leading,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
                 ),
-                child: Icon(
-                  leading,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (subtitle != null)
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        subtitle,
+                        title,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          fontSize: 15 * textScaleFactor,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                  ],
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12 * textScaleFactor,
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (trailing != null) trailing,
-            ],
+                if (trailing != null) trailing,
+              ],
+            ),
           ),
         ),
       ),
