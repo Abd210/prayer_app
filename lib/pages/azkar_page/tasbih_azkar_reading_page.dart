@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:confetti/confetti.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:prayer/models/azakdata.dart';
 import 'package:prayer/widgets/animated_wave_background.dart';
 import 'package:prayer/utils/azkar_storage.dart';
+import 'package:prayer/pages/azkar_reminders_page.dart';
+import 'package:prayer/services/azkar_reminder_service.dart';
+import 'package:prayer/models/azkar_model.dart';
 
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -366,6 +370,11 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
           )
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _setReminder,
+        tooltip: 'Set Reminder',
+        child: const Icon(Icons.notifications_active),
+      ),
       body: Stack(
         children: [
           AnimatedWaveBackground(
@@ -523,6 +532,48 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _setReminder() async {
+    // Convert the first DhikrItem to an AzkarModel
+    final azkar = AzkarModel(
+      id: const Uuid().v4(), // Generate a unique ID
+      text: widget.title,
+      textAr: widget.items.isNotEmpty ? widget.items[0].arabic : "",
+      reference: widget.items.isNotEmpty ? widget.items[0].translation : "",
+      count: 1,
+    );
+
+    // Create a reminder immediately
+    final now = TimeOfDay.now();
+    final reminder = AzkarReminder(
+      id: const Uuid().v4(),
+      azkarId: azkar.id,
+      title: widget.title,
+      time: now,
+      days: List.generate(7, (index) => index), // All days selected
+      isEnabled: true,
+    );
+
+    // Show reminder details dialog directly instead of going to reminders page
+    showDialog(
+      context: context,
+      builder: (context) => ReminderDetailsDialog(
+        azkar: azkar,
+        reminder: reminder,
+        onSave: (updatedReminder) async {
+          await AzkarReminderService.addReminder(updatedReminder);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reminder set successfully'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        },
       ),
     );
   }

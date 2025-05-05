@@ -85,6 +85,7 @@
   },
 
   "locationUnavailable": "Location unavailable",
+  "loadingPrayerTimes": "Loading Prayer Times",
 
   "prayerFajr": "Fajr",
   "prayerSunrise": "Sunrise",

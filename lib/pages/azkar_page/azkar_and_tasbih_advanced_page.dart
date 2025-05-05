@@ -3,6 +3,7 @@ import 'package:prayer/models/azakdata.dart';
 import 'package:prayer/widgets/animated_wave_background.dart';
 import 'package:prayer/utils/custom_azkar_service.dart';
 import 'package:prayer/models/custom_azkar_model.dart';
+import 'package:prayer/pages/azkar_reminders_page.dart';
 import 'tasbih_azkar_reading_page.dart';
 import 'custom_azkar_page.dart';
 
@@ -45,6 +46,20 @@ class _AzkarAndTasbihAdvancedPageState extends State<AzkarAndTasbihAdvancedPage>
       child: Scaffold(
         appBar: AppBar(
           title: Text(loc.azkarTasbihTitle),          // ← localised
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications_active),
+              tooltip: 'Azkar Reminders',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AzkarRemindersPage(),
+                  ),
+                );
+              },
+            ),
+          ],
           bottom: TabBar(
             controller: _tabController,
             labelColor: Colors.white,

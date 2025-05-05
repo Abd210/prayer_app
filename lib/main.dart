@@ -10,6 +10,7 @@ import 'services/language_provider.dart';
 import 'services/prayer_settings_provider.dart';
 import 'services/analytics_service.dart';
 import 'services/compass_service.dart';
+import 'services/azkar_reminder_service.dart';
 import 'theme/theme_notifier.dart';
 import 'pages/splash_screen.dart';   // or MainNavScreen()
 import 'pages/onboarding_page.dart';
@@ -29,6 +30,9 @@ void main() async {
   }
 
   await NotificationService().init();
+  
+  /// Initialize azkar reminder service
+  await AzkarReminderService.init();
 
   runApp(
     MultiProvider(

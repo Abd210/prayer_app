@@ -483,12 +483,67 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 18),
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 30),
-              tooltip: l10n.reload,
-              onPressed: _initLocation,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: Stack(
+                      children: [
+                        SizedBox.expand(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 5,
+                            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Icon(
+                            Icons.mosque_outlined,
+                            size: 40,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    l10n.loadingPrayerTimes,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.locationUnavailable,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: _initLocation,
+                    icon: const Icon(Icons.refresh),
+                    label: Text(l10n.reload),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
