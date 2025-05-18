@@ -22,6 +22,10 @@ import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
 import '../services/notification_service.dart';
 import '../models/prayer_adjustments.dart';
+import '../widgets/animated_wave_background.dart';
+import '../widgets/prayer_times/prayer_time_card.dart';
+import '../widgets/prayer_times/next_prayer_indicator.dart';
+import '../widgets/prayer_times/location_display.dart';
 
 /// ————————————————— Animated wave background —————————————————
 class AnimatedWaveBackground extends StatefulWidget {
@@ -179,8 +183,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     _cachedSunnah.clear();
     _preload();
     _updateNext();
-        /*  🔹 NEW — re‑schedule notifications so they
-        match the *current* calculation settings            */
+    // Re-schedule notifications so they match the current calculation settings
     _scheduleToday();
   }
 
@@ -198,526 +201,550 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       _pos = Position(
         latitude: m['lat'],
         longitude: m['lng'],
-        timestamp: DateTime.now(),
-        accuracy: 0,
-        altitude: 0,
-        heading: 0,
-        speed: 0,
-        speedAccuracy: 0,
-        altitudeAccuracy: 0,
-        headingAccuracy: 0,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(m['ts']),
+        accuracy: m['acc'] ?? 0,
+        altitude: m['alt'] ?? 0,
+        heading: m['heading'] ?? 0,
+        speed: m['speed'] ?? 0,
+        speedAccuracy: m['speedAcc'] ?? 0,
+        altitudeAccuracy: m['altAcc'] ?? 0,
+        headingAccuracy: m['headingAcc'] ?? 0,
       );
       _city = m['city'];
+      setState(() {});
       _preload();
-      _updateNext();
-      _scheduleToday();
-    } catch (_) {/* ignore */}
+    } catch (e) {
+      print('Weekly cache deserialize: $e');
+    }
   }
 
-  Future<void> _saveWeekly() async {
+  Future<void> _saveLocationWeekly() async {
     if (_pos == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _locKey,
-        json.encode(
-            {'lat': _pos!.latitude, 'lng': _pos!.longitude, 'city': _city}));
-    await prefs.setInt(_tsKey, DateTime.now().millisecondsSinceEpoch);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final m = <String, dynamic>{
+        'lat': _pos!.latitude,
+        'lng': _pos!.longitude,
+        'ts': _pos!.timestamp?.millisecondsSinceEpoch ?? 0,
+        'acc': _pos!.accuracy,
+        'city': _city,
+      };
+      await prefs.setString(_locKey, json.encode(m));
+      await prefs.setInt(_tsKey, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      print('Weekly cache serialize: $e');
+    }
   }
 
-  // —————————————————— location + preload
+  // —————————————————— location
   Future<void> _initLocation() async {
-    if (_pos != null) return; // already have cached location
-
-    final l10n = AppLocalizations.of(context)!;
-    final pos = await LocationService.determinePosition();
-    if (!mounted) return;
-
-    if (pos == null) {
-      setState(() {
-        _pos = null;
-        _city = l10n.locationUnavailable;
-      });
+    final loc = await LocationService.determinePosition();
+    if (loc == null) {
+      setState(() => _permissionError = true);
       return;
     }
 
-    _pos = pos;
-    try {
-      final pl = await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      _city = _chooseCity(pl, pos);
-    } catch (_) {
-      _city =
-          '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
-    }
+    _pos = loc;
+    _permissionError = false;
+    if (!mounted) return;
 
-    setState(() {});
     _preload();
     _updateNext();
-    _scheduleToday();
-    _saveWeekly();
+    setState(() {});
+
+    try {
+      LocationService.getPlacemark(loc).then((place) {
+        if (place != null && mounted) {
+          setState(() => _city = place.locality ?? '?');
+          _saveLocationWeekly();
+        }
+      });
+    } catch (e) {
+      print('Geocoding: $e');
+    }
   }
 
-  String _chooseCity(List<Placemark> list, Position p) {
-    final plc = list.firstWhere(
-        (pl) =>
-            (pl.locality?.isNotEmpty ?? false) ||
-            (pl.subLocality?.isNotEmpty ?? false) ||
-            (pl.administrativeArea?.isNotEmpty ?? false) ||
-            (pl.country?.isNotEmpty ?? false),
-        orElse: () => list.first);
-    return plc.locality ??
-        plc.subLocality ??
-        plc.administrativeArea ??
-        plc.country ??
-        '${p.latitude.toStringAsFixed(2)}, ${p.longitude.toStringAsFixed(2)}';
-  }
-
+  // —————————————————— prayer time helpers
   void _preload() {
     if (_pos == null) return;
-    final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
-    final now = DateTime.now();
 
-    for (int off = -_daysRange; off <= _daysRange; off++) {
-      final date = now.add(Duration(days: off));
-      final params = prefs.calculationMethod.getParameters()
-        ..madhab = prefs.madhab
-        ..adjustments =
-            PrayerAdjustments(fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0);
-      final coords = Coordinates(_pos!.latitude, _pos!.longitude);
-      final pt = PrayerTimes(coords, DateComponents.from(date), params);
-      _cachedTimes[off] = pt;
-      _cachedSunnah[off] = SunnahTimes(pt);
+    // Clear the cached times
+    _cachedTimes.clear();
+    _cachedSunnah.clear();
+
+    // Get the calculation preferences
+    final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final custAdj = prefs.prayerAdjustments;
+
+    // Create coordinates with or without elevation
+    Coordinates coords;
+    if (prefs.useElevation) {
+      coords = Coordinates(
+        _pos!.latitude, 
+        _pos!.longitude,
+        altitude: prefs.manualElevation
+      );
+    } else {
+      coords = Coordinates(_pos!.latitude, _pos!.longitude);
     }
-    setState(() {});
+
+    // Get calculation method
+    final calcParams = CalculationMethod.other.getParameters();
+    calcParams.method = prefs.calculationMethod;
+    calcParams.madhab = prefs.madhab;
+
+    // Adjust for calculation method offsets
+    if (calcParams.method == CalculationMethod.north_america) {
+      // 15° for fajr, 15° for isha
+      calcParams.fajrAngle = 15;
+      calcParams.ishaAngle = 15;
+    } else if (calcParams.method == CalculationMethod.muslim_world_league) {
+      // 18° for fajr, 17° for isha
+      calcParams.fajrAngle = 18;
+      calcParams.ishaAngle = 17;
+    }
+
+    // Apply manual adjustments from preferences
+    calcParams.adjustments = PrayerAdjustments(
+      fajr: custAdj.fajr,
+      sunrise: 0,
+      dhuhr: custAdj.dhuhr,
+      asr: custAdj.asr,
+      maghrib: custAdj.maghrib,
+      isha: custAdj.isha,
+    );
+
+    // Get prayer times for this date range
+    final now = DateTime.now();
+    final start = now.subtract(Duration(days: _daysRange));
+    final end = now.add(Duration(days: _daysRange));
+
+    // Cache all days in range
+    for (DateTime d = start; d.isBefore(end); d = d.add(const Duration(days: 1))) {
+      final key = _dateToKey(d);
+      final pt = PrayerTimes(
+        coords, 
+        DateComponents(d.year, d.month, d.day), 
+        calcParams
+      );
+      final st = SunnahTimes(pt);
+      _cachedTimes[key] = pt;
+      _cachedSunnah[key] = st;
+    }
+
+    // Calculate for next prayer and time remaining
+    _updateNext();
   }
 
-  // —————————————————— ticker & next prayer
-  void _startTicker() {
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _updateNext());
+  int _dateToKey(DateTime d) {
+    // Convert a date to a simple integer key
+    // Format: YYYYMMDD
+    return d.year * 10000 + d.month * 100 + d.day;
+  }
+
+  DateTime _getDateTime(PrayerTimes pt, Prayer prayer) {
+    // Convert from a PrayerTimes object to a DateTime
+    final pTime = pt.timeForPrayer(prayer);
+    if (pTime == null) return DateTime.now();
+    
+    final d = pt.date;
+    return DateTime(d.year, d.month, d.day, pTime.hour, pTime.minute);
   }
 
   void _updateNext() {
-    final pt = _cachedTimes[0];
-    if (pt == null) {
-      setState(() {
-        _untilNext = Duration.zero;
-        _nextName = '-';
-        _progress = 0;
-      });
+    if (_pos == null) return;
+    
+    final now = DateTime.now();
+    final todayKey = _dateToKey(now);
+    final todayTimes = _cachedTimes[todayKey];
+    
+    if (todayTimes == null) {
+      print('No cached times for today');
       return;
     }
+    
+    // Find next prayer
+    final next = todayTimes.nextPrayer();
+    if (next == null) {
+      // If no next prayer today, get tomorrow's fajr
+      final tmrKey = _dateToKey(now.add(const Duration(days: 1)));
+      final tmrTimes = _cachedTimes[tmrKey];
+      
+      if (tmrTimes != null) {
+        final tmrFajr = _getDateTime(tmrTimes, Prayer.fajr);
+        _nextName = 'fajr';
+        _untilNext = tmrFajr.difference(now);
+      }
+    } else {
+      _nextName = next.name.toLowerCase();
+      
+      // Get DateTime for next prayer
+      final nextTime = _getDateTime(todayTimes, next);
+      _untilNext = nextTime.difference(now);
+      
+      // Calculate progress
+      Prayer? prev;
+      switch (next) {
+        case Prayer.fajr:
+          // Previous prayer was isha from yesterday
+          final yday = now.subtract(const Duration(days: 1));
+          final ydayKey = _dateToKey(yday);
+          final ydayTimes = _cachedTimes[ydayKey];
+          
+          if (ydayTimes != null) {
+            final ydayIsha = _getDateTime(ydayTimes, Prayer.isha);
+            final totalDuration = nextTime.difference(ydayIsha);
+            final elapsed = now.difference(ydayIsha);
+            _progress = elapsed.inSeconds / totalDuration.inSeconds;
+          }
+          break;
+          
+        case Prayer.sunrise:
+          prev = Prayer.fajr;
+          break;
+          
+        case Prayer.dhuhr:
+          prev = Prayer.sunrise;
+          break;
+          
+        case Prayer.asr:
+          prev = Prayer.dhuhr;
+          break;
+          
+        case Prayer.maghrib:
+          prev = Prayer.asr;
+          break;
+          
+        case Prayer.isha:
+          prev = Prayer.maghrib;
+          break;
+      }
+      
+      if (prev != null) {
+        final prevTime = _getDateTime(todayTimes, prev);
+        final totalDuration = nextTime.difference(prevTime);
+        final elapsed = now.difference(prevTime);
+        _progress = elapsed.inSeconds / totalDuration.inSeconds;
+      }
+      
+      // Clamp progress to [0, 1] range
+      _progress = _progress.clamp(0.0, 1.0);
+    }
+  }
 
-    final map = {
-      Prayer.fajr: pt.fajr.toLocal(),
-      Prayer.sunrise: pt.sunrise.toLocal(),
-      Prayer.dhuhr: pt.dhuhr.toLocal(),
-      Prayer.asr: pt.asr.toLocal(),
-      Prayer.maghrib: pt.maghrib.toLocal(),
-      Prayer.isha: pt.isha.toLocal(),
-    };
-
-    final now = DateTime.now();
-    DateTime? nextTime;
-    late Prayer nextPrayer;
-
-    for (final p in [
+  // —————————————————— schedule notification
+  Future<void> _scheduleToday() async {
+    final todayKey = _dateToKey(DateTime.now());
+    final pt = _cachedTimes[todayKey];
+    if (pt == null) return;
+    
+    final ns = NotificationService();
+    await ns.cancelAllNotifications();
+    
+    final prayers = [
       Prayer.fajr,
       Prayer.dhuhr,
       Prayer.asr,
       Prayer.maghrib,
-      Prayer.isha
-    ]) {
-      if (now.isBefore(map[p]!)) {
-        nextTime = map[p];
-        nextPrayer = p;
-        break;
-      }
-    }
-
-    DateTime currentStart;
-    if (nextTime == null) {
-      nextTime = pt.fajr.add(const Duration(days: 1)).toLocal();
-      nextPrayer = Prayer.fajr;
-      currentStart = map[Prayer.isha]!;
-    } else {
-      const order = [
-        Prayer.fajr,
-        Prayer.dhuhr,
-        Prayer.asr,
-        Prayer.maghrib,
-        Prayer.isha
-      ];
-      final idx = order.indexOf(nextPrayer);
-      currentStart = idx == 0 ? map[Prayer.isha]! : map[order[idx - 1]]!;
-    }
-
-    final until = nextTime.difference(now);
-    final total = nextTime.difference(currentStart);
-    setState(() {
-      _untilNext = until;
-      _nextName = nextPrayer.name.toUpperCase();
-      _progress = 1 - (until.inSeconds / total.inSeconds);
-    });
-  }
-
-  // —————————————————— notifications
-  Future<void> _scheduleToday() async {
-    if (kIsWeb) return; // Skip on web platform
+      Prayer.isha,
+    ];
     
-    final pt = _cachedTimes[0];
-    if (pt == null) return;
-
-    await NotificationService().cancelAllNotifications();
     final l10n = AppLocalizations.of(context)!;
-    final now = DateTime.now();
-    const ids = {
-      Prayer.fajr: 0,
-      Prayer.dhuhr: 1,
-      Prayer.asr: 2,
-      Prayer.maghrib: 3,
-      Prayer.isha: 4,
-    };
-
-    final times = {
-      Prayer.fajr: pt.fajr,
-      Prayer.dhuhr: pt.dhuhr,
-      Prayer.asr: pt.asr,
-      Prayer.maghrib: pt.maghrib,
-      Prayer.isha: pt.isha,
-    };
-
-    for (final e in times.entries) {
-      final t = e.value.toLocal();
-      if (t.isAfter(now)) {
-        final prayerName = e.key.name.toUpperCase();
-        await NotificationService().scheduleNotification(
-          id: ids[e.key]!,
-          title: l10n.prayerTimeTitle,
-          body: l10n.prayerNotificationBody(prayerName, _city),
-          scheduledDate: t,
-          prayerName: prayerName,
+    
+    for (final p in prayers) {
+      final time = pt.timeForPrayer(p);
+      if (time == null) continue;
+      
+      final d = pt.date;
+      final dt = DateTime(d.year, d.month, d.day, time.hour, time.minute);
+      
+      // Only schedule notifications for future times
+      if (dt.isAfter(DateTime.now())) {
+        String prayerName;
+        switch (p) {
+          case Prayer.fajr:
+            prayerName = l10n.fajr;
+            break;
+          case Prayer.dhuhr:
+            prayerName = l10n.dhuhr;
+            break;
+          case Prayer.asr:
+            prayerName = l10n.asr;
+            break;
+          case Prayer.maghrib:
+            prayerName = l10n.maghrib;
+            break;
+          case Prayer.isha:
+            prayerName = l10n.isha;
+            break;
+          default:
+            prayerName = p.name;
+        }
+        
+        await ns.scheduleNotification(
+          id: p.index,
+          title: l10n.timeForPrayer(prayerName),
+          body: l10n.prayerTimeNotificationBody,
+          scheduledDate: dt,
+          prayerName: p.name,
         );
       }
     }
   }
 
-  // —————————————————— UI
+  // —————————————————— ticker
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      
+      // Decrement time until next prayer
+      if (_untilNext.inSeconds > 0) {
+        setState(() {
+          _untilNext = _untilNext - const Duration(seconds: 1);
+        });
+      } else {
+        _updateNext();
+        _scheduleToday();
+      }
+    });
+  }
+
+  // —————————————————— page scroll function (unused in this snippet)
+  void _onPageChanged(int index) {
+    if (!mounted) return;
+    setState(() => _currentIndex = index);
+  }
+
+  // —————————————————— BUILD METHOD
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final mediaQuery = MediaQuery.of(context);
-    final screenWidth = mediaQuery.size.width;
-    final screenHeight = mediaQuery.size.height;
-    final isSmallScreen = screenWidth < 360;
-
-    return AnimatedWaveBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(_city, style: TextStyle(fontSize: isSmallScreen ? 16 : 18)),
-          actions: [
-            if (!kIsWeb) IconButton(
-              icon: const Icon(Icons.notifications_active),
-              tooltip: l10n.testNotification,
-              onPressed: () => NotificationService().sendTestNotification(),
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: l10n.reload,
-              onPressed: _initLocation,
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          tooltip: l10n.statisticsTooltip,
-          onPressed: () => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const StatisticsPage())),
-          child: const Icon(Icons.insert_chart_outlined),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        body: _pos == null
-            ? _loadingView(l10n)
-            : SafeArea(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Column(
-                      children: [
-                        _nextPrayerCard(context, l10n, constraints.maxWidth),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: isSmallScreen ? 4 : 8,
-                            horizontal: isSmallScreen ? 8 : 16,
-                          ),
-                          child: ElevatedButton.icon(
-                            icon: Icon(Icons.today, size: isSmallScreen ? 18 : 24),
-                            label: Text(l10n.returnToToday,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: isSmallScreen ? 12 : 14,
-                                )),
-                            onPressed: () {
-                              setState(() => _currentIndex = _pageCenterIndex);
-                              _pager.jumpToPage(_pageCenterIndex);
-                            },
-                          ),
-                        ),
-                        Expanded(
-                          child: PageView.builder(
-                            controller: _pager,
-                            itemCount: _daysRange * 2 + 1,
-                            onPageChanged: (i) => setState(() => _currentIndex = i),
-                            itemBuilder: (_, idx) =>
-                                _dayView(idx - _pageCenterIndex, l10n, constraints.maxWidth),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                ),
+    final theme = Theme.of(context);
+    final use24h = Provider.of<PrayerSettingsProvider>(context).use24hFormat;
+    
+    // If we have a permission error, show the permission UI
+    if (_permissionError) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.prayerTimes)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.location_off,
+                size: 80,
+                color: theme.colorScheme.error,
               ),
-      ),
-    );
-  }
-
-  Widget _loadingView(AppLocalizations l10n) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 18),
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 30),
-              tooltip: l10n.reload,
-              onPressed: _initLocation,
-            ),
-          ],
+              const SizedBox(height: 24),
+              Text(
+                l10n.locationPermissionDenied,
+                style: const TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _initLocation,
+                icon: const Icon(Icons.location_on),
+                label: Text(l10n.allowLocationAccess),
+              ),
+            ],
+          ),
         ),
       );
-
-  Widget _nextPrayerCard(BuildContext ctx, AppLocalizations l10n, double maxWidth) {
-    final isSmallScreen = maxWidth < 360;
-    final h = _untilNext.inHours;
-    final m = _untilNext.inMinutes % 60;
-    final s = _untilNext.inSeconds % 60;
-    final countdown =
-        '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-
-    return Container(
-      margin: EdgeInsets.all(isSmallScreen ? 8 : 16),
-      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(ctx).colorScheme.primary.withOpacity(.9),
-            Theme.of(ctx).colorScheme.secondary.withOpacity(.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    }
+    
+    // If we don't have location data yet, show loading
+    if (_pos == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.prayerTimes)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    // Check for cached prayer times
+    final today = DateTime.now();
+    final todayKey = _dateToKey(today);
+    final todayTimes = _cachedTimes[todayKey];
+    
+    if (todayTimes == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.prayerTimes)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(l10n.loadingPrayerTimes),
+            ],
+          ),
         ),
-        borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            label: "${l10n.nextPrayerLabel(_nextName)}",
-            child: Text(
-              l10n.nextPrayerLabel(_nextName),
-              style: TextStyle(
-                  fontSize: isSmallScreen ? 16 : 18, 
-                  fontWeight: FontWeight.bold, 
-                  color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(height: isSmallScreen ? 4 : 6),
-          Semantics(
-            label: l10n.startsIn(countdown),
-            child: Text(
-              l10n.startsIn(countdown),
-              style: TextStyle(fontSize: isSmallScreen ? 14 : 16, color: Colors.white)
-            ),
-          ),
-          SizedBox(height: isSmallScreen ? 8 : 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Semantics(
-              label: "Prayer countdown progress: ${(_progress * 100).toInt()}%",
-              child: LinearProgressIndicator(
-                value: _progress,
-                backgroundColor: Colors.white.withOpacity(.3),
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                minHeight: isSmallScreen ? 4 : 6,
-              ),
-            ),
+      );
+    }
+    
+    // Format times for display
+    final timeFormat = use24h ? DateFormat.Hm() : DateFormat.jm();
+    final todaySunnah = _cachedSunnah[todayKey]!;
+    
+    // Build the UI with the extracted components
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.prayerTimes),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _initLocation,
+            tooltip: l10n.refresh,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _dayView(int offset, AppLocalizations l10n, double maxWidth) {
-    final pt = _cachedTimes[offset];
-    final st = _cachedSunnah[offset];
-    if (pt == null || st == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final date = DateTime.now().add(Duration(days: offset));
-    final locale = Localizations.localeOf(context).languageCode;
-    final dateStr = DateFormat.yMMMMEEEEd(locale).format(date);
-
-    final prefs = Provider.of<PrayerSettingsProvider>(context, listen: false);
-    final fmt = prefs.use24hFormat ? 'HH:mm' : 'hh:mm a';
-    
-    // Adjust sizes based on screen width
-    final isSmallScreen = maxWidth < 360;
-    final double titleFontSize = isSmallScreen ? 15.0 : 17.0;
-    final double bodyFontSize = isSmallScreen ? 13.0 : 15.0;
-    final double padding = isSmallScreen ? 12.0 : 16.0;
-
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          // This ensures the content takes at least the full height of the container
-          minHeight: MediaQuery.of(context).size.height - (isSmallScreen ? 200 : 220),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(padding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: AnimatedWaveBackground(
+        child: RefreshIndicator(
+          onRefresh: () async => _initLocation(),
+          child: ListView(
             children: [
-              Text(
-                dateStr, 
-                style: TextStyle(
-                  fontSize: bodyFontSize, 
-                  fontWeight: FontWeight.bold
-                ),
-                overflow: TextOverflow.ellipsis,
+              // Location and date display
+              LocationDisplay(
+                cityName: _city,
+                date: today,
+                hasPermissionError: _permissionError,
+                onRequestPermission: _initLocation,
               ),
-              SizedBox(height: isSmallScreen ? 8 : 12),
-              _row(l10n.prayerFajr, pt.fajr, fmt, Icons.wb_twighlight, maxWidth),
-              _row(l10n.prayerSunrise, pt.sunrise, fmt, Icons.wb_sunny, maxWidth),
-              _row(l10n.prayerDhuhr, pt.dhuhr, fmt, Icons.wb_sunny_outlined, maxWidth),
-              _row(l10n.prayerAsr, pt.asr, fmt, Icons.filter_drama, maxWidth),
-              _row(l10n.prayerMaghrib, pt.maghrib, fmt, Icons.nightlight_round, maxWidth),
-              _row(l10n.prayerIsha, pt.isha, fmt, Icons.nightlight, maxWidth),
-              Divider(height: isSmallScreen ? 24 : 32),
-              Text(l10n.sunnahTimes, 
-                style: TextStyle(
-                  fontSize: titleFontSize, 
-                  fontWeight: FontWeight.bold
-                )
+              
+              // Next prayer indicator with countdown
+              NextPrayerIndicator(
+                nextPrayerName: _nextName,
+                timeUntil: _untilNext,
+                progress: _progress,
+                randomTip: _randomTip,
               ),
-              SizedBox(height: isSmallScreen ? 6 : 8),
-              _row(l10n.middleNight, st.middleOfTheNight, fmt, Icons.dark_mode, maxWidth),
-              _row(l10n.lastThirdNight, st.lastThirdOfTheNight, fmt, Icons.mode_night, maxWidth),
-              SizedBox(height: isSmallScreen ? 16 : 24),
-              Text(l10n.tipOfDay, 
-                style: TextStyle(
-                  fontSize: bodyFontSize, 
-                  fontWeight: FontWeight.w500
-                )
+              
+              // Prayer time cards
+              PrayerTimeCard(
+                prayerName: 'fajr',
+                prayerTime: _getDateTime(todayTimes, Prayer.fajr),
+                timeFormatted: timeFormat.format(_getDateTime(todayTimes, Prayer.fajr)),
+                isNext: _nextName == 'fajr',
+                use24hFormat: use24h,
               ),
-              SizedBox(height: isSmallScreen ? 2 : 4),
-              Text(_randomTip,
-                  textAlign: TextAlign.center,
+              
+              PrayerTimeCard(
+                prayerName: 'sunrise',
+                prayerTime: _getDateTime(todayTimes, Prayer.sunrise),
+                timeFormatted: timeFormat.format(_getDateTime(todayTimes, Prayer.sunrise)),
+                isNext: _nextName == 'sunrise',
+                use24hFormat: use24h,
+              ),
+              
+              PrayerTimeCard(
+                prayerName: 'dhuhr',
+                prayerTime: _getDateTime(todayTimes, Prayer.dhuhr),
+                timeFormatted: timeFormat.format(_getDateTime(todayTimes, Prayer.dhuhr)),
+                isNext: _nextName == 'dhuhr',
+                use24hFormat: use24h,
+              ),
+              
+              PrayerTimeCard(
+                prayerName: 'asr',
+                prayerTime: _getDateTime(todayTimes, Prayer.asr),
+                timeFormatted: timeFormat.format(_getDateTime(todayTimes, Prayer.asr)),
+                isNext: _nextName == 'asr',
+                use24hFormat: use24h,
+              ),
+              
+              PrayerTimeCard(
+                prayerName: 'maghrib',
+                prayerTime: _getDateTime(todayTimes, Prayer.maghrib),
+                timeFormatted: timeFormat.format(_getDateTime(todayTimes, Prayer.maghrib)),
+                isNext: _nextName == 'maghrib',
+                use24hFormat: use24h,
+              ),
+              
+              PrayerTimeCard(
+                prayerName: 'isha',
+                prayerTime: _getDateTime(todayTimes, Prayer.isha),
+                timeFormatted: timeFormat.format(_getDateTime(todayTimes, Prayer.isha)),
+                isNext: _nextName == 'isha',
+                use24hFormat: use24h,
+              ),
+              
+              // Additional sunnah times section
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  l10n.sunnahTimes,
                   style: TextStyle(
-                    fontSize: isSmallScreen ? 12 : 14, 
-                    fontStyle: FontStyle.italic
-                  )
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
-              // Add bottom padding for scrolling
-              SizedBox(height: isSmallScreen ? 16 : 24),
+              const SizedBox(height: 8),
+              
+              // Sunnah time cards
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.middleOfNight,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              timeFormat.format(todaySunnah.middleOfTheNight),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.lastThirdOfNight,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              timeFormat.format(todaySunnah.lastThirdOfTheNight),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
     );
-  }
-
-  Widget _row(String label, DateTime t, String fmt, IconData icon, double maxWidth) {
-    final isSmallScreen = maxWidth < 360;
-    final textSize = isSmallScreen ? 13.0 : 15.0;
-    final iconSize = isSmallScreen ? 18.0 : 22.0;
-    
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 3 : 5),
-      child: Row(
-        children: [
-          Icon(icon, 
-            color: Theme.of(context).colorScheme.primary, 
-            size: iconSize
-          ),
-          SizedBox(width: isSmallScreen ? 6 : 8),
-          Expanded(
-            child: Text(
-              label, 
-              style: TextStyle(
-                fontWeight: FontWeight.w500, 
-                fontSize: textSize
-              ),
-              overflow: TextOverflow.ellipsis,
-            )
-          ),
-          Text(
-            DateFormat(fmt).format(t.toLocal()), 
-            style: TextStyle(fontSize: textSize),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper method to get day offset for page index
-  int _dayOffset(int pageIndex) {
-    return pageIndex - _pageCenterIndex;
-  }
-
-  Future<void> _updatePrayerTimes() async {
-    Position? position;
-    
-    // Try getting manual location first if enabled
-    position = await LocationService.getManualLocationIfEnabled();
-    
-    // If no manual location is set or it's not enabled, get current location
-    if (position == null) {
-      // Use frequent updates if enabled in settings
-      final prefs = await SharedPreferences.getInstance();
-      final frequentUpdates = prefs.getBool('frequentLocationUpdates') ?? false;
-      position = await LocationService.determinePosition(frequentUpdates: frequentUpdates);
-    }
-
-    if (position == null) {
-      setState(() {
-        _permissionError = true;
-      });
-      return;
-    }
-
-    // Clear any permission errors if we got here
-    if (_permissionError) {
-      setState(() {
-        _permissionError = false;
-      });
-    }
-    
-    // Update position and refresh calculations
-    _pos = position;
-    
-    // Clear cached prayer times to force recalculation with new settings
-    _cachedTimes.clear();
-    _cachedSunnah.clear();
-    
-    // Use existing methods to update calculations
-    _preload();
-    _updateNext();
-    
-    // Schedule notifications
-    _scheduleToday();
-    
-    setState(() {});
   }
 }
