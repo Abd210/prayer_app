@@ -6,7 +6,7 @@ echo 📄 Generating localization files...
 flutter gen-l10n
 
 REM Check if localization files were generated
-if exist ".dart_tool\flutter_gen\gen_l10n\app_localizations.dart" (
+if exist "lib\generated\l10n\app_localizations.dart" (
     echo ✅ Localization files generated successfully
 ) else (
     echo ❌ Failed to generate localization files

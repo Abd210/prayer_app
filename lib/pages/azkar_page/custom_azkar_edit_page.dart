@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:prayer/models/custom_azkar_model.dart';
 import 'package:prayer/utils/custom_azkar_service.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 
 class CustomAzkarEditPage extends StatefulWidget {
   final CustomAzkar? azkar;

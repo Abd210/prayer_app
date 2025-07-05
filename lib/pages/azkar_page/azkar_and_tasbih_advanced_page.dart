@@ -6,7 +6,7 @@ import 'package:prayer/models/custom_azkar_model.dart';
 import 'tasbih_azkar_reading_page.dart';
 import 'custom_azkar_page.dart';
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 
 ///
 /// AZKAR & TASBIH ADVANCED PAGE

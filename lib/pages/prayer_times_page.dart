@@ -15,7 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 
 import 'statistcs.dart';
 import '../services/location_service.dart';

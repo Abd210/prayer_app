@@ -29,7 +29,7 @@ jobs:
       - name: Verify generated files
         run: |
           echo "Checking if localization files were generated..."
-          ls -la .dart_tool/flutter_gen/gen_l10n/ || echo "gen_l10n directory not found"
+          ls -la lib/generated/l10n/ || echo "l10n directory not found"
           find . -name "app_localizations.dart" -type f || echo "app_localizations.dart not found"
           
       - name: Clean Flutter build

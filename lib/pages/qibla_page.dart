@@ -4,7 +4,7 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:adhan/adhan.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 
 import '../services/location_service.dart';
 

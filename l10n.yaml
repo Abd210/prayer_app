@@ -1,7 +1,9 @@
 # l10n.yaml  ── sits next to pubspec.yaml
 arb-dir: lib/l10n                    # where your .arb files live
-template-arb-file: app_en.arb        # the English “source‑of‑truth”
+template-arb-file: app_en.arb        # the English "source‑of‑truth"
 output-localization-file: app_localizations.dart
+output-dir: lib/generated/l10n       # explicit output directory
+synthetic-package: false             # disable synthetic package
 # optional extras you can turn on later:
 # use-deferred-loading: true         # shrink JS bundle for web
 # untranslated-messages-file: tool/untranslated.json

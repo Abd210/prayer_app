@@ -9,7 +9,7 @@ import '../services/prayer_settings_provider.dart';
 
 // ─── new imports for language switching ──────────────────────────
 import '../services/language_provider.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 // ─────────────────────────────────────────────────────────────────
 
 import '../services/notification_service.dart';

@@ -8,7 +8,7 @@ import 'package:prayer/models/azakdata.dart';
 import 'package:prayer/widgets/animated_wave_background.dart';
 import 'package:prayer/utils/azkar_storage.dart';
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 
 /* ────────────────────────────────────────────────────────────────────────────
    TASBIH ADVANCED PAGE

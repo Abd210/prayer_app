@@ -7,7 +7,7 @@ echo "📄 Generating localization files..."
 flutter gen-l10n
 
 # Check if localization files were generated
-if [ -f ".dart_tool/flutter_gen/gen_l10n/app_localizations.dart" ]; then
+if [ -f "lib/generated/l10n/app_localizations.dart" ]; then
     echo "✅ Localization files generated successfully"
 else
     echo "❌ Failed to generate localization files"

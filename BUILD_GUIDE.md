@@ -62,7 +62,12 @@ The project includes a GitHub Actions workflow (`.github/workflows/ios-build.yml
 ## Manual Build Scripts
 
 ### Windows
-Run `scripts/prebuild.bat` before building:
+Run the PowerShell script (recommended):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\prebuild.ps1
+```
+
+Or run the batch script:
 ```batch
 scripts\prebuild.bat
 ```
@@ -85,5 +90,25 @@ chmod +x scripts/prebuild.sh
 
 - `.github/workflows/ios-build.yml` - Updated workflow with proper localization generation
 - `lib/l10n/app_ar.arb` - Fixed missing `startsIn` translation
+- `l10n.yaml` - Updated to use explicit output directory and disable synthetic package
+- `pubspec.yaml` - Updated Flutter configuration
+- `lib/main.dart` and all other Dart files - Updated import paths to use new localization structure
 - `scripts/prebuild.sh` - Linux/macOS prebuild script
-- `scripts/prebuild.bat` - Windows prebuild script 
+- `scripts/prebuild.bat` - Windows batch prebuild script
+- `scripts/prebuild.ps1` - Windows PowerShell prebuild script
+
+## Changes Made to Fix Flutter Gen Issue
+
+The main issue was that Flutter's `flutter_gen` synthetic package approach was deprecated in newer Flutter versions. The solution involved:
+
+1. **Updated l10n.yaml configuration**:
+   - Added explicit `output-dir: lib/generated/l10n`
+   - Added `synthetic-package: false` to disable the deprecated approach
+
+2. **Updated all import statements**:
+   - Changed from `import 'package:flutter_gen/gen_l10n/app_localizations.dart';`
+   - To `import 'package:prayer/generated/l10n/app_localizations.dart';`
+
+3. **Updated GitHub Actions workflow**:
+   - Changed verification path from `.dart_tool/flutter_gen/gen_l10n/`
+   - To `lib/generated/l10n/` 

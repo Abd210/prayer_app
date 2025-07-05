@@ -6,7 +6,7 @@ import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/azkar_storage.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 
 enum Timeframe { daily, weekly, monthly }
 

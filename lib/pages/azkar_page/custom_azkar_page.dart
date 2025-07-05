@@ -3,7 +3,7 @@ import 'package:prayer/models/custom_azkar_model.dart';
 import 'package:prayer/utils/custom_azkar_service.dart';
 import 'package:prayer/models/azakdata.dart';
 import 'package:prayer/widgets/animated_wave_background.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:prayer/generated/l10n/app_localizations.dart';
 import 'custom_azkar_edit_page.dart';
 import 'tasbih_azkar_reading_page.dart';
 
