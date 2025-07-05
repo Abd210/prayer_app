@@ -58,6 +58,7 @@
     }
   },
 
+  "startsIn": "يبدأ خلال {countdown}",
   "@startsIn": {
     "placeholders": {
       "countdown": {
@@ -65,7 +66,6 @@
       }
     }
   },
-  "@startsIn": { "placeholders": { "countdown": {} } },
 
   "returnToToday": "العودة إلى اليوم",
   "testNotification": "اختبار الإشعار",
