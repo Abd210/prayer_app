@@ -99,8 +99,11 @@ class NotificationService {
   }) async {
     // Skip if running on web
     if (kIsWeb) return;
-    
     print('[NotificationService] Scheduling notification: $title at $scheduledDate, prayer: $prayerName');
+
+    // Read allowAdhanSound from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final allowAdhanSound = prefs.getBool('allowAdhanSound') ?? true;
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
@@ -114,21 +117,19 @@ class NotificationService {
           channelDescription: 'Notifications for prayer times',
           importance: Importance.max,
           priority: Priority.high,
-          playSound: true,
+          playSound: allowAdhanSound,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exact,
-      // uiLocalNotificationDateInterpretation:
-      // UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
       payload: prayerName,
     );
-    
+
     // Set up a listener for actual notification trigger time
     final now = DateTime.now();
     final difference = scheduledDate.difference(now).inMilliseconds;
-    
-    if (difference > 0 && prayerName != null) {
+
+    if (difference > 0 && prayerName != null && allowAdhanSound) {
       // Add a slight delay to ensure notification appears first
       Future.delayed(Duration(milliseconds: difference), () {
         // Play adhan when notification time is reached
@@ -141,10 +142,16 @@ class NotificationService {
   Future<void> sendTestNotification() async {
     // Skip if running on web
     if (kIsWeb) return;
-    
-    // Play adhan sound immediately for testing
-    _adhanService.playAdhan('TEST');
-    
+
+    // Read allowAdhanSound from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final allowAdhanSound = prefs.getBool('allowAdhanSound') ?? true;
+
+    // Play adhan sound immediately for testing if allowed
+    if (allowAdhanSound) {
+      _adhanService.playAdhan('TEST');
+    }
+
     final testTime = DateTime.now().add(const Duration(seconds: 5));
     await scheduleNotification(
       id: 999,

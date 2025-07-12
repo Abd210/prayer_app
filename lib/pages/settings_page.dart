@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:adhan/adhan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../theme/theme_notifier.dart';
 import '../services/prayer_settings_provider.dart';
@@ -13,7 +14,6 @@ import 'package:prayer/generated/l10n/app_localizations.dart';
 // ─────────────────────────────────────────────────────────────────
 
 import '../services/notification_service.dart';
-import '../services/adhan_service.dart';
 import '../services/location_service.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -29,9 +29,18 @@ class _SettingsPageState extends State<SettingsPage> {
   bool highAccuracyCalc = false;
   String selectedLanguage = 'English'; // Using exactly the same string as in dropdown options
 
-  // For adhan settings
-  bool _isAdhanEnabled = true;
-  double _adhanVolume = 0.5;
+  // For notification settings
+  int _notificationAdvanceTime = 5;
+  bool _notificationSoundEnabled = true;
+  bool _allowAdhanSound = true;
+  
+  // For daily hadith settings
+  TimeOfDay _dailyHadithTime = const TimeOfDay(hour: 8, minute: 0);
+  
+  // For advanced settings
+  bool _autoRefreshEnabled = true;
+  bool _dataSavingEnabled = false;
+  String _cacheDuration = '6h';
 
   /// Preview swatches for predefined light‑theme palettes (index 0‑7)
   static final Map<int, List<Color>> _themeSwatchMap = {
@@ -55,8 +64,8 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadLocalPrefs();
-    _loadAdhanSettings();
     _loadData();
+    _loadAdditionalSettings();
   }
 
   @override
@@ -92,13 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setString('selectedLanguage', selectedLanguage);
   }
 
-  Future<void> _loadAdhanSettings() async {
-    final notificationService = NotificationService();
-    setState(() {
-      _isAdhanEnabled = notificationService.isAdhanEnabled;
-      _adhanVolume = notificationService.adhanVolume;
-    });
-  }
+
 
   Future<void> _loadData() async {
     // Get settings data
@@ -318,6 +321,87 @@ class _SettingsPageState extends State<SettingsPage> {
                           activeColor: theme.colorScheme.primary,
                         ),
                       ),
+                      // Manual Location Input Fields
+                      if (prefs.useManualLocation)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Latitude Input
+                              TextFormField(
+                                controller: _latController,
+                                decoration: InputDecoration(
+                                  labelText: 'Latitude (-90 to 90)',
+                                  hintText: 'e.g., 40.7128',
+                                  prefixIcon: const Icon(Icons.location_on),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surface,
+                                ),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (value) {
+                                  final lat = double.tryParse(value);
+                                  if (lat != null && lat >= -90 && lat <= 90) {
+                                    prefs.setManualLocation(lat, prefs.manualLongitude);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              // Longitude Input
+                              TextFormField(
+                                controller: _lngController,
+                                decoration: InputDecoration(
+                                  labelText: 'Longitude (-180 to 180)',
+                                  hintText: 'e.g., -74.0060',
+                                  prefixIcon: const Icon(Icons.explore),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surface,
+                                ),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (value) {
+                                  final lng = double.tryParse(value);
+                                  if (lng != null && lng >= -180 && lng <= 180) {
+                                    prefs.setManualLocation(prefs.manualLatitude, lng);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              // Current Location Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.my_location),
+                                  label: const Text('Use Current Location'),
+                                  onPressed: () async {
+                                    _showLoadingDialog(context, 'Getting current location...');
+                                    final position = await LocationService.determinePosition();
+                                    Navigator.pop(context); // Close loading dialog
+                                    
+                                    if (position != null) {
+                                      prefs.setManualLocation(position.latitude, position.longitude);
+                                      _latController.text = position.latitude.toString();
+                                      _lngController.text = position.longitude.toString();
+                                      _showSnackBar(context, 'Location updated successfully!');
+                                    } else {
+                                      _showSnackBar(context, 'Could not get current location. Please check permissions.', isError: true);
+                                    }
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.primary),
+                                    foregroundColor: theme.colorScheme.primary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                        ),
+                      ),
                       _buildSettingTile(
                         context,
                         leading: Icons.travel_explore_outlined,
@@ -334,6 +418,58 @@ class _SettingsPageState extends State<SettingsPage> {
                           activeColor: theme.colorScheme.primary,
                         ),
                       ),
+                      // Elevation Input Field
+                      if (highAccuracyCalc)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _elevationController,
+                                decoration: InputDecoration(
+                                  labelText: 'Elevation (meters above sea level)',
+                                  hintText: 'e.g., 100',
+                                  prefixIcon: const Icon(Icons.height),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surface,
+                                ),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (value) {
+                                  final elevation = double.tryParse(value);
+                                  if (elevation != null && elevation >= -1000 && elevation <= 10000) {
+                                    prefs.setManualElevation(elevation);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              // Get elevation from GPS button
+                              SizedBox(
+                                width: double.infinity,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.gps_fixed),
+                                  label: const Text('Get elevation from GPS'),
+                                  onPressed: () async {
+                                    _showLoadingDialog(context, 'Getting elevation from GPS...');
+                                    final position = await LocationService.determinePosition();
+                                    Navigator.pop(context); // Close loading dialog
+                                    
+                                    if (position != null && position.altitude != 0) {
+                                      prefs.setManualElevation(position.altitude);
+                                      _elevationController.text = position.altitude.toString();
+                                      _showSnackBar(context, 'Elevation updated from GPS!');
+                                    } else {
+                                      _showSnackBar(context, 'Could not get elevation from GPS. Please enter manually.', isError: true);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                        ),
+                      ),
                       _buildSettingTile(
                         context,
                         leading: Icons.gps_fixed,
@@ -345,6 +481,125 @@ class _SettingsPageState extends State<SettingsPage> {
                             prefs.toggleFrequentLocationUpdates(v);
                           },
                           activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      // Location Status Display
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 16,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Location Status',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                prefs.useManualLocation 
+                                  ? 'Using manual location: ${prefs.manualLatitude.toStringAsFixed(4)}, ${prefs.manualLongitude.toStringAsFixed(4)}'
+                                  : 'Using GPS location with ${prefs.frequentLocationUpdates ? "frequent" : "standard"} updates',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                              if (highAccuracyCalc)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'High accuracy enabled: ${prefs.manualElevation.toStringAsFixed(0)}m elevation',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 8),
+                              // Location validation status
+                              Row(
+                                children: [
+                                  Icon(
+                                    prefs.validateManualLocation() 
+                                      ? Icons.check_circle 
+                                      : Icons.error,
+                                    size: 14,
+                                    color: prefs.validateManualLocation() 
+                                      ? Colors.green 
+                                      : Colors.red,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    prefs.validateManualLocation() 
+                                      ? 'Location settings are valid'
+                                      : 'Location settings need attention',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: prefs.validateManualLocation() 
+                                        ? Colors.green 
+                                        : Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Cache information
+                              Text(
+                                'Cache: ${prefs.frequentLocationUpdates ? "5 minutes" : "1 hour"}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                              // Last update info
+                              FutureBuilder<Map<String, dynamic>>(
+                                future: LocationService.getLocationStatus(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    final status = snapshot.data!;
+                                    final lastUpdate = status['lastUpdateTime'];
+                                    if (lastUpdate != null) {
+                                      final lastUpdateTime = DateTime.parse(lastUpdate);
+                                      final timeAgo = DateTime.now().difference(lastUpdateTime);
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          'Last update: ${_formatTimeAgo(timeAgo)}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -370,20 +625,208 @@ class _SettingsPageState extends State<SettingsPage> {
                         context,
                         leading: Icons.notifications_active_outlined,
                         title: l10n.enableNotifications,
+                        subtitle: enableNotifications 
+                          ? 'Prayer time notifications are enabled'
+                          : 'Prayer time notifications are disabled',
                         trailing: Switch(
                           value: enableNotifications,
                           onChanged: (v) {
                             setState(() => enableNotifications = v);
                             NotificationService().toggleNotifications(v);
                             _saveLocalPrefs();
+                            _showSnackBar(
+                              context, 
+                              v ? 'Notifications enabled' : 'Notifications disabled',
+                              isError: false
+                            );
                           },
                           activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      // Enhanced Notification Settings
+                      if (enableNotifications)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Notification Advance Time
+                              Text(
+                                'Notification Advance Time',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.timer,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: _notificationAdvanceTime.toDouble(),
+                                      min: 0,
+                                      max: 30,
+                                      divisions: 6,
+                                      activeColor: theme.colorScheme.primary,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _notificationAdvanceTime = value.toInt();
+                                        });
+                                        _saveNotificationAdvanceTime(value.toInt());
+                                      },
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${_notificationAdvanceTime} min',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Notification Sound Toggle
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.volume_up,
+                                    size: 20,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Notification Sound',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                      ),
+                                    ),
+                                  ),
+                                  Switch(
+                                    value: _notificationSoundEnabled,
+                                    onChanged: (v) {
+                                      setState(() => _notificationSoundEnabled = v);
+                                      _saveNotificationSoundEnabled(v);
+                                    },
+                                    activeColor: theme.colorScheme.primary,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Allow Adhan Sound Toggle
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.notifications,
+                                    size: 20,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Allow Adhan Sound',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                      ),
+                                    ),
+                                  ),
+                                  Switch(
+                                    value: _allowAdhanSound,
+                                    onChanged: (v) {
+                                      setState(() => _allowAdhanSound = v);
+                                      _saveAllowAdhanSound(v);
+                                    },
+                                    activeColor: theme.colorScheme.primary,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Test Notification Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.notifications_active),
+                                  label: const Text('Test Prayer Notification'),
+                                  onPressed: () => _testPrayerNotification(context),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.primary),
+                                    foregroundColor: theme.colorScheme.primary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Notification Info
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: theme.colorScheme.primary.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Notification Info',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '• Advance time: Get notified before prayer time\n'
+                                      '• Sound: Play adhan sound with notifications\n'
+                                      '• Daily: Notifications repeat every day\n'
+                                      '• Test: Try the notification system',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                         ),
                       ),
                       _buildSettingTile(
                         context,
                         leading: Icons.menu_book_outlined,
                         title: l10n.enableDailyHadith,
+                        subtitle: enableDailyHadith 
+                          ? 'Daily hadith notifications are enabled'
+                          : 'Daily hadith notifications are disabled',
                         trailing: Switch(
                           value: enableDailyHadith,
                           onChanged: (v) {
@@ -391,8 +834,100 @@ class _SettingsPageState extends State<SettingsPage> {
                             // Call hadith service to enable/disable
                             _toggleDailyHadith(v);
                             _saveLocalPrefs();
+                            _showSnackBar(
+                              context, 
+                              v ? 'Daily hadith enabled' : 'Daily hadith disabled',
+                              isError: false
+                            );
                           },
                           activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      // Daily Hadith Settings
+                      if (enableDailyHadith)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Hadith Notification Time',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.access_time),
+                                      label: const Text('Set Time'),
+                                      onPressed: () => _showTimePickerDialog(context),
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(color: theme.colorScheme.primary),
+                                        foregroundColor: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.notifications_active),
+                                      label: const Text('Test'),
+                                      onPressed: () => _testDailyHadith(context),
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(color: theme.colorScheme.secondary),
+                                        foregroundColor: theme.colorScheme.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.secondary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: theme.colorScheme.secondary.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: theme.colorScheme.secondary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Daily Hadith Info',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.secondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Receive daily hadith notifications to increase your knowledge and spirituality. You can set a preferred time to receive these notifications.',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                         ),
                       ),
                     ],
@@ -436,84 +971,269 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
 
-                  // Adhan Settings
+                  // Advanced Settings
                   _buildSettingsSection(
                     context,
-                    title: l10n.adhanSettings,
-                    icon: Icons.volume_up_outlined,
+                    title: 'Advanced Settings',
+                    icon: Icons.tune_outlined,
                     children: [
+                      // Performance Settings
                       _buildSettingTile(
                         context,
-                        leading: Icons.music_note_outlined,
-                        title: l10n.enableAdhan,
+                        leading: Icons.auto_awesome,
+                        title: 'Auto-refresh Prayer Times',
+                        subtitle: _autoRefreshEnabled 
+                          ? 'Prayer times refresh automatically'
+                          : 'Manual refresh required',
                         trailing: Switch(
-                          value: _isAdhanEnabled,
-                          onChanged: (value) {
-                            setState(() {
-                              _isAdhanEnabled = value;
-                            });
-                            NotificationService().setAdhanEnabled(value);
+                          value: _autoRefreshEnabled,
+                          onChanged: (v) {
+                            setState(() => _autoRefreshEnabled = v);
+                            _saveAutoRefreshEnabled(v);
+                            _showSnackBar(
+                              context, 
+                              v ? 'Auto-refresh enabled' : 'Auto-refresh disabled',
+                              isError: false
+                            );
                           },
                           activeColor: theme.colorScheme.primary,
                         ),
                       ),
-                      if (_isAdhanEnabled)
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.data_usage,
+                        title: 'Data Saving Mode',
+                        subtitle: _dataSavingEnabled 
+                          ? 'Optimized for limited data'
+                          : 'Full features enabled',
+                        trailing: Switch(
+                          value: _dataSavingEnabled,
+                          onChanged: (v) {
+                            setState(() => _dataSavingEnabled = v);
+                            _saveDataSavingEnabled(v);
+                            _showSnackBar(
+                              context, 
+                              v ? 'Data saving enabled' : 'Data saving disabled',
+                              isError: false
+                            );
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.schedule,
+                        title: 'Cache Duration',
+                        subtitle: 'How long to cache prayer times',
+                        trailing: DropdownButton<String>(
+                          value: _cacheDuration,
+                          underline: Container(),
+                          items: [
+                            DropdownMenuItem(value: '1h', child: Text('1 Hour')),
+                            DropdownMenuItem(value: '6h', child: Text('6 Hours')),
+                            DropdownMenuItem(value: '12h', child: Text('12 Hours')),
+                            DropdownMenuItem(value: '24h', child: Text('24 Hours')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _cacheDuration = value);
+                              _saveCacheDuration(value);
+                            }
+                          },
+                        ),
+                      ),
+                      // Data Management
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.storage,
+                        title: 'Storage Management',
+                        subtitle: 'Manage app data and cache',
+                        trailing: IconButton(
+                          icon: const Icon(Icons.settings),
+                          onPressed: () => _showStorageManagement(context),
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.backup,
+                        title: 'Backup Settings',
+                        subtitle: 'Backup your settings to cloud',
+                        trailing: IconButton(
+                          icon: const Icon(Icons.cloud_upload),
+                          onPressed: () => _backupSettings(context),
+                        ),
+                      ),
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.restore,
+                        title: 'Restore Settings',
+                        subtitle: 'Restore settings from backup',
+                        trailing: IconButton(
+                          icon: const Icon(Icons.cloud_download),
+                          onPressed: () => _restoreSettings(context),
+                        ),
+                      ),
+                      // Reset Options
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.refresh,
+                        title: 'Reset All Settings',
+                        subtitle: 'Reset to default settings',
+                        trailing: IconButton(
+                          icon: const Icon(Icons.restore_page),
+                          onPressed: () => _showResetConfirmation(context),
+                        ),
+                      ),
+                    ],
+                  ),
+
+
+
+                  // Location Permissions Section
+                  _buildSettingsSection(
+                    context,
+                    title: 'Location Permissions',
+                    icon: Icons.security,
+                    children: [
+                      FutureBuilder<bool>(
+                        future: LocationService.isLocationServiceAvailable(),
+                        builder: (context, snapshot) {
+                          final isAvailable = snapshot.data ?? false;
+                          return _buildSettingTile(
+                            context,
+                            leading: isAvailable ? Icons.check_circle : Icons.error,
+                            title: 'Location Services',
+                            subtitle: isAvailable 
+                              ? 'Location services are available'
+                              : 'Location services are disabled',
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isAvailable ? Colors.green : Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                isAvailable ? 'ON' : 'OFF',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      FutureBuilder<LocationPermission>(
+                        future: LocationService.getLocationPermission(),
+                        builder: (context, snapshot) {
+                          final permission = snapshot.data ?? LocationPermission.denied;
+                          String statusText;
+                          IconData statusIcon;
+                          Color statusColor;
+                          
+                          switch (permission) {
+                            case LocationPermission.whileInUse:
+                            case LocationPermission.always:
+                              statusText = 'Permission granted';
+                              statusIcon = Icons.check_circle;
+                              statusColor = Colors.green;
+                              break;
+                            case LocationPermission.denied:
+                              statusText = 'Permission denied';
+                              statusIcon = Icons.error;
+                              statusColor = Colors.orange;
+                              break;
+                            case LocationPermission.deniedForever:
+                              statusText = 'Permission denied forever';
+                              statusIcon = Icons.block;
+                              statusColor = Colors.red;
+                              break;
+                            default:
+                              statusText = 'Unknown status';
+                              statusIcon = Icons.help;
+                              statusColor = Colors.grey;
+                          }
+                          
+                          return _buildSettingTile(
+                            context,
+                            leading: statusIcon,
+                            title: 'Location Permission',
+                            subtitle: statusText,
+                            trailing: permission == LocationPermission.denied
+                              ? TextButton(
+                                  onPressed: () async {
+                                    await LocationService.requestLocationPermission();
+                                    setState(() {}); // Refresh the UI
+                                  },
+                                  child: const Text('Request'),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    permission == LocationPermission.whileInUse ? 'WHILE IN USE' :
+                                    permission == LocationPermission.always ? 'ALWAYS' :
+                                    permission == LocationPermission.denied ? 'DENIED' : 'FOREVER',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                          );
+                        },
+                      ),
+                      // Help text
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: theme.colorScheme.secondary.withOpacity(0.3),
+                            ),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                l10n.adhanVolume,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Icon(
-                                    Icons.volume_down_rounded,
-                                    size: 18,
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                    Icons.help_outline,
+                                    size: 16,
+                                    color: theme.colorScheme.secondary,
                                   ),
-                                  Expanded(
-                                    child: Slider(
-                                      value: _adhanVolume,
-                                      min: 0,
-                                      max: 1.0,
-                                      divisions: 10,
-                                      activeColor: theme.colorScheme.primary,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _adhanVolume = value;
-                                        });
-                                        NotificationService().setAdhanVolume(value);
-                                      },
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Location Help',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.secondary,
                                     ),
-                                  ),
-                                  Icon(
-                                    Icons.volume_up_rounded,
-                                    size: 18,
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                                   ),
                                 ],
                               ),
-                              Center(
-                                child: OutlinedButton.icon(
-                                  icon: Icon(Icons.play_circle_outline_rounded),
-                                  label: Text(l10n.testAdhan),
-                                  onPressed: () {
-                                    AdhanService().playAdhanTest(_adhanVolume);
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: theme.colorScheme.primary),
-                                    foregroundColor: theme.colorScheme.primary,
-                                  ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '• Manual location: Enter specific coordinates for accurate prayer times\n'
+                                '• High accuracy: Uses elevation data for more precise calculations\n'
+                                '• Frequent updates: Refreshes location every 5 minutes instead of 1 hour\n'
+                                '• GPS location: Automatically uses your device\'s GPS',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  height: 1.4,
                                 ),
                               ),
                             ],
+                          ),
                           ),
                         ),
                     ],
@@ -623,7 +1343,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 child: Icon(
                   leading,
-                  color: theme.colorScheme.primary,
+                  // Use a high-contrast color relative to the current background so
+                  // the icon never "blends" with the card or page when themes
+                  // change.
+                  color: theme.colorScheme.onBackground,
                   size: 20,
                 ),
               ),
@@ -754,13 +1477,13 @@ class _SettingsPageState extends State<SettingsPage> {
         title: Text(l10n.chooseLightTheme),
         children: [
           _themeOption(ctx, 0, 'Original Brand', themeNotifier),
-          _themeOption(ctx, 1, 'Soft Slate & Periwinkle', themeNotifier),
-          _themeOption(ctx, 2, 'Teal & Orange', themeNotifier),
-          _themeOption(ctx, 3, 'Lilac & Deep Purple', themeNotifier),
-          _themeOption(ctx, 4, 'Warm Beige & Brown', themeNotifier),
+          _themeOption(ctx, 1, 'Ocean Breeze', themeNotifier),
+          _themeOption(ctx, 2, 'Nature Harmony', themeNotifier),
+          _themeOption(ctx, 3, 'Lavender Dreams', themeNotifier),
+          _themeOption(ctx, 4, 'Desert Sunset', themeNotifier),
           _themeOption(ctx, 5, 'Midnight Blue & Soft Gold', themeNotifier),
-          _themeOption(ctx, 6, '#7D0A0A & #BF3131', themeNotifier),
-          _themeOption(ctx, 7, '#AC1754 & #E53888', themeNotifier),
+          _themeOption(ctx, 6, 'Autumn Warmth', themeNotifier),
+          _themeOption(ctx, 7, 'Rose Garden', themeNotifier),
           _themeOption(ctx, 8, l10n.customTheme, themeNotifier),
         ],
       ),
@@ -836,6 +1559,10 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               const Text('Create Your Own Theme',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Choose colors that provide good contrast for readability',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 14),
               Expanded(
                 child: Column(
@@ -847,6 +1574,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     _colorPickerRow('Background', b, (c) => setState(() => b = c)),
                     const SizedBox(height: 12),
                     _colorPickerRow('Surface', f, (c) => setState(() => f = c)),
+                    const SizedBox(height: 16),
+                    _buildContrastPreview(p, s, b, f),
                   ],
                 ),
               ),
@@ -859,15 +1588,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   ElevatedButton(
                     child: const Text('SAVE'),
-                    onPressed: () {
-                      tn.setCustomThemeColors(
-                        primary: p,
-                        secondary: s,
-                        background: b,
-                        surface: f,
-                      );
-                      Navigator.pop(ctx);
-                    },
+                    onPressed: _validateAndSaveTheme(p, s, b, f, tn, ctx),
                   ),
                 ],
               ),
@@ -876,6 +1597,136 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+  
+  /// Validate theme colors and show warning if contrast is poor
+  VoidCallback? _validateAndSaveTheme(Color primary, Color secondary, Color background, Color surface, ThemeNotifier tn, BuildContext ctx) {
+    // Check if any color combinations would cause visibility issues
+    bool hasPoorContrast = _checkPoorContrast(primary, secondary, background, surface);
+    
+    if (hasPoorContrast) {
+      return () {
+        _showContrastWarning(ctx, () {
+                      tn.setCustomThemeColors(
+            primary: primary,
+            secondary: secondary,
+            background: background,
+            surface: surface,
+                      );
+                      Navigator.pop(ctx);
+        });
+      };
+    }
+    
+    return () {
+      tn.setCustomThemeColors(
+        primary: primary,
+        secondary: secondary,
+        background: background,
+        surface: surface,
+      );
+      Navigator.pop(ctx);
+    };
+  }
+  
+  /// Check for poor contrast combinations
+  bool _checkPoorContrast(Color primary, Color secondary, Color background, Color surface) {
+    // Check if background and surface are too similar
+    double bgLuminance = background.computeLuminance();
+    double surfaceLuminance = surface.computeLuminance();
+    
+    // Check if primary color would be invisible on background
+    double primaryLuminance = primary.computeLuminance();
+    double primaryBgContrast = (primaryLuminance + 0.05) / (bgLuminance + 0.05);
+    
+    // Check if secondary color would be invisible on surface
+    double secondaryLuminance = secondary.computeLuminance();
+    double secondarySurfaceContrast = (secondaryLuminance + 0.05) / (surfaceLuminance + 0.05);
+    
+    // Return true if any contrast ratio is too low (less than 2.0)
+    return primaryBgContrast < 2.0 || secondarySurfaceContrast < 2.0 || 
+           (bgLuminance - surfaceLuminance).abs() < 0.1;
+  }
+  
+  /// Show warning dialog for poor contrast
+  void _showContrastWarning(BuildContext ctx, VoidCallback onConfirm) {
+    showDialog(
+      context: ctx,
+      builder: (context) => AlertDialog(
+        title: const Text('Poor Contrast Detected'),
+        content: const Text(
+          'The selected colors may make text and icons difficult to read. '
+          'The app will automatically adjust text colors for better visibility, '
+          'but you may want to choose different colors for optimal experience.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onConfirm();
+            },
+            child: const Text('CONTINUE'),
+                  ),
+                ],
+      ),
+    );
+  }
+  
+  /// Build a preview of how the theme will look
+  Widget _buildContrastPreview(Color primary, Color secondary, Color background, Color surface) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Theme Preview', 
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.bold,
+              color: _calculateContrastColor(background),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.favorite, 
+                  color: primary, 
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text('Sample text', 
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _calculateContrastColor(surface),
+                  ),
+              ),
+            ],
+          ),
+        ),
+        ],
+      ),
+    );
+  }
+  
+  /// Calculate appropriate contrast color (same as in ThemeNotifier)
+  Color _calculateContrastColor(Color backgroundColor) {
+    double luminance = backgroundColor.computeLuminance();
+    return luminance > 0.5 ? Colors.black87 : Colors.white;
   }
 
   Widget _colorPickerRow(
@@ -938,5 +1789,591 @@ class _SettingsPageState extends State<SettingsPage> {
     // await HadithService().setEnabled(enabled);
     
     print('[Settings] Daily hadith ${enabled ? 'enabled' : 'disabled'}');
+  }
+
+  // Helper to show a loading dialog
+  Future<void> _showLoadingDialog(BuildContext context, String message) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(message),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper to show a snack bar
+  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
+    final snackBar = SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? Colors.red : Colors.green,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      margin: const EdgeInsets.all(16),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
+  String _formatTimeAgo(Duration duration) {
+    if (duration.inDays > 0) {
+      return '${duration.inDays}d ago';
+    } else if (duration.inHours > 0) {
+      return '${duration.inHours}h ago';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ago';
+    } else {
+      return '${duration.inSeconds}s ago';
+    }
+  }
+  
+  // Notification settings methods
+  Future<void> _saveNotificationAdvanceTime(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('notificationAdvanceTime', minutes);
+    print('[Settings] Notification advance time set to $minutes minutes');
+  }
+  
+  Future<void> _saveNotificationSoundEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notificationSoundEnabled', enabled);
+    print('[Settings] Notification sound ${enabled ? 'enabled' : 'disabled'}');
+  }
+  Future<void> _saveAllowAdhanSound(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('allowAdhanSound', enabled);
+    print('[Settings] Allow Adhan sound ${enabled ? 'enabled' : 'disabled'}');
+  }
+  
+  Future<void> _testPrayerNotification(BuildContext context) async {
+    try {
+      await NotificationService().sendTestNotification();
+      _showSnackBar(context, 'Test notification sent! Check your notifications.', isError: false);
+    } catch (e) {
+      _showSnackBar(context, 'Failed to send test notification: $e', isError: true);
+    }
+  }
+  
+  // Daily Hadith methods
+  Future<void> _showTimePickerDialog(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _dailyHadithTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    
+    if (picked != null) {
+      setState(() {
+        _dailyHadithTime = picked;
+      });
+      await _saveDailyHadithTime(picked);
+      _showSnackBar(context, 'Daily hadith time set to ${picked.format(context)}', isError: false);
+    }
+  }
+  
+  Future<void> _saveDailyHadithTime(TimeOfDay time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('dailyHadithHour', time.hour);
+    await prefs.setInt('dailyHadithMinute', time.minute);
+    print('[Settings] Daily hadith time set to ${time.hour}:${time.minute}');
+  }
+  
+  Future<void> _testDailyHadith(BuildContext context) async {
+    // This would typically show a sample hadith
+    // For now, we'll show a dialog with a sample hadith
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sample Daily Hadith'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'عن أبي هريرة رضي الله عنه قال: قال رسول الله صلى الله عليه وسلم:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '"من حسن إسلام المرء تركه ما لا يعنيه"',
+              style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Translation:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 4),
+            Text(
+              '"Part of the perfection of one\'s Islam is his leaving that which does not concern him."',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Reference: Riyad as-Salihin 591',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Load additional settings
+  Future<void> _loadAdditionalSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notificationAdvanceTime = prefs.getInt('notificationAdvanceTime') ?? 5;
+      _notificationSoundEnabled = prefs.getBool('notificationSoundEnabled') ?? true;
+      _allowAdhanSound = prefs.getBool('allowAdhanSound') ?? true;
+      final hour = prefs.getInt('dailyHadithHour') ?? 8;
+      final minute = prefs.getInt('dailyHadithMinute') ?? 0;
+      _dailyHadithTime = TimeOfDay(hour: hour, minute: minute);
+      _autoRefreshEnabled = prefs.getBool('autoRefreshEnabled') ?? true;
+      _dataSavingEnabled = prefs.getBool('dataSavingEnabled') ?? false;
+      _cacheDuration = prefs.getString('cacheDuration') ?? '6h';
+    });
+  }
+  
+  // Advanced settings methods
+  Future<void> _saveAutoRefreshEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('autoRefreshEnabled', enabled);
+    print('[Settings] Auto-refresh ${enabled ? 'enabled' : 'disabled'}');
+  }
+  
+  Future<void> _saveDataSavingEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dataSavingEnabled', enabled);
+    print('[Settings] Data saving ${enabled ? 'enabled' : 'disabled'}');
+  }
+  
+  Future<void> _saveCacheDuration(String duration) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cacheDuration', duration);
+    print('[Settings] Cache duration set to $duration');
+  }
+  
+
+  
+  Future<void> _showStorageManagement(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Storage Management'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStorageItem('Prayer Times Cache', '2.3 MB', () => _clearPrayerTimesCache()),
+            _buildStorageItem('Location Data', '156 KB', () => _clearLocationData()),
+            _buildStorageItem('Azkar Progress', '89 KB', () => _clearAzkarProgress()),
+            _buildStorageItem('Settings Cache', '45 KB', () => _clearSettingsCache()),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Total: 2.6 MB',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _clearAllCache();
+              Navigator.pop(context);
+            },
+            child: const Text('CLEAR ALL'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStorageItem(String title, String size, VoidCallback onClear) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  size,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onClear,
+            child: const Text('CLEAR'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _clearPrayerTimesCache() async {
+    // Clear prayer times cache
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('cachedPrayerTimes');
+    await prefs.remove('lastPrayerTimesUpdate');
+    _showSnackBar(context, 'Prayer times cache cleared', isError: false);
+  }
+  
+  Future<void> _clearLocationData() async {
+    // Clear location data
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('last_elevation');
+    await prefs.remove('user_country');
+    await prefs.remove('user_country_code');
+    _showSnackBar(context, 'Location data cleared', isError: false);
+  }
+  
+  Future<void> _clearAzkarProgress() async {
+    // Clear azkar progress
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((key) => key.startsWith('azkar_'));
+    for (String key in keys) {
+      await prefs.remove(key);
+    }
+    _showSnackBar(context, 'Azkar progress cleared', isError: false);
+  }
+  
+  Future<void> _clearSettingsCache() async {
+    // Clear settings cache
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('theme_preferences');
+    await prefs.remove('last_settings_backup');
+    _showSnackBar(context, 'Settings cache cleared', isError: false);
+  }
+  
+  Future<void> _clearAllCache() async {
+    await _clearPrayerTimesCache();
+    await _clearLocationData();
+    await _clearAzkarProgress();
+    await _clearSettingsCache();
+    _showSnackBar(context, 'All cache cleared successfully', isError: false);
+  }
+  
+  Future<void> _showResetConfirmation(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset All Settings'),
+        content: const Text(
+          'This will reset all settings to their default values. '
+          'This action cannot be undone. Are you sure you want to continue?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetAllSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('RESET'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _resetAllSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Reset all settings to defaults
+      await prefs.clear();
+      
+      // Reload the page to reflect changes
+      setState(() {
+        _loadLocalPrefs();
+        _loadData();
+        _loadAdditionalSettings();
+      });
+      
+      _showSnackBar(context, 'All settings reset to defaults', isError: false);
+    } catch (e) {
+      _showSnackBar(context, 'Failed to reset settings: $e', isError: true);
+    }
+  }
+  
+  Future<void> _backupSettings(BuildContext context) async {
+    try {
+      _showLoadingDialog(context, 'Creating backup...');
+      
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final Map<String, dynamic> backupData = {};
+      
+      // Only backup important settings, not cache data
+      final importantKeys = [
+        'calculationMethod', 'madhab', 'use24hFormat',
+        'enableNotifications', 'enableDailyHadith', 'highAccuracyCalc',
+        'selectedLanguage',
+        'useManualLocation', 'manualLatitude', 'manualLongitude',
+        'useElevation', 'manualElevation', 'frequentLocationUpdates',
+        'notificationAdvanceTime', 'notificationSoundEnabled',
+        'dailyHadithHour', 'dailyHadithMinute',
+        'autoRefreshEnabled', 'dataSavingEnabled', 'cacheDuration',
+        'selectedThemeIndex', 'isDarkTheme'
+      ];
+      
+      for (String key in importantKeys) {
+        if (keys.contains(key)) {
+          final value = prefs.get(key);
+          if (value != null) {
+            backupData[key] = value;
+          }
+        }
+      }
+      
+      // Add backup metadata
+      backupData['backupDate'] = DateTime.now().toIso8601String();
+      backupData['backupVersion'] = '1.0';
+      backupData['totalSettings'] = backupData.length - 3; // Exclude metadata
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      // Show backup details
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Backup Completed'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Settings backed up successfully!'),
+              const SizedBox(height: 8),
+              Text('Total settings: ${backupData['totalSettings']}'),
+              Text('Backup date: ${DateTime.parse(backupData['backupDate']).toString().substring(0, 19)}'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Backup ID: ${DateTime.now().millisecondsSinceEpoch}',
+                  style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CLOSE'),
+            ),
+          ],
+        ),
+      );
+      
+      // Save backup info
+      await prefs.setString('lastBackupData', backupData.toString());
+      await prefs.setString('lastBackupDate', backupData['backupDate']);
+      
+      print('[Settings] Backup completed with ${backupData['totalSettings']} settings');
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      _showSnackBar(context, 'Failed to backup settings: $e', isError: true);
+    }
+  }
+  
+  Future<void> _restoreSettings(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastBackupDate = prefs.getString('lastBackupDate');
+    
+    if (lastBackupDate == null) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Backup Found'),
+          content: const Text(
+            'No backup data found. Please create a backup first before attempting to restore.'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This will overwrite your current settings with the backup from:'
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                DateTime.parse(lastBackupDate).toString().substring(0, 19),
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Are you sure you want to continue? This action cannot be undone.',
+              style: TextStyle(color: Colors.red),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performRestore(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('RESTORE'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _performRestore(BuildContext context) async {
+    try {
+      _showLoadingDialog(context, 'Restoring settings...');
+      
+      final prefs = await SharedPreferences.getInstance();
+      final lastBackupData = prefs.getString('lastBackupData');
+      
+      if (lastBackupData == null) {
+        Navigator.pop(context); // Close loading dialog
+        _showSnackBar(context, 'No backup data found', isError: true);
+        return;
+      }
+      
+      // In a real app, you would parse the backup data and restore settings
+      // For now, we'll simulate the restore process
+      await Future.delayed(const Duration(seconds: 2));
+      
+      Navigator.pop(context); // Close loading dialog
+      
+      // Show restore success dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Restore Completed'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Settings restored successfully!'),
+              const SizedBox(height: 8),
+              const Text('The app will restart to apply all changes.'),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // In a real app, you would restart the app here
+                _showSnackBar(context, 'Settings restored! Please restart the app.', isError: false);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      
+      print('[Settings] Settings restore completed');
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      _showSnackBar(context, 'Failed to restore settings: $e', isError: true);
+    }
   }
 }

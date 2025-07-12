@@ -19,10 +19,10 @@ class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
   @override
   void initState() {
     super.initState();
-    // This controller will run indefinitely and rebuild the painter every frame
+    // Create a continuous animation that never resets
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 10), // Longer duration for smoother flow
     )..repeat(); // loop forever
   }
 
@@ -41,7 +41,7 @@ class _AnimatedWaveBackgroundState extends State<AnimatedWaveBackground>
         return CustomPaint(
           painter: _GreenWavePainter(
             waveValue: _waveController.value,
-            // Use the theme’s primary color at ~15% opacity:
+            // Use the theme's primary color at ~15% opacity:
             waveColor: theme.colorScheme.primary.withOpacity(0.15),
           ),
           child: child,
@@ -67,14 +67,14 @@ class _GreenWavePainter extends CustomPainter {
       ..color = waveColor
       ..style = PaintingStyle.fill;
 
-    // We will draw 2 or 3 waves at different phases or amplitudes
-    _drawWave(canvas, size, paint, amplitude: 20, speed: 1.0, yOffset: 0);
-    _drawWave(canvas, size, paint, amplitude: 25, speed: 1.5, yOffset: 30);
-    _drawWave(canvas, size, paint, amplitude: 15, speed: 2.0, yOffset: 60);
+    // Draw multiple waves with different phases for a more natural look
+    _drawWave(canvas, size, paint, amplitude: 20, speed: 0.8, yOffset: 0, phase: 0);
+    _drawWave(canvas, size, paint, amplitude: 25, speed: 1.2, yOffset: 30, phase: 0.3);
+    _drawWave(canvas, size, paint, amplitude: 15, speed: 1.6, yOffset: 60, phase: 0.7);
   }
 
   void _drawWave(Canvas canvas, Size size, Paint paint,
-      {double amplitude = 20, double speed = 1.0, double yOffset = 0}) {
+      {double amplitude = 20, double speed = 1.0, double yOffset = 0, double phase = 0}) {
     final path = Path();
     final double waveWidth = size.width;
     final double waveHeight = size.height;
@@ -85,7 +85,7 @@ class _GreenWavePainter extends CustomPainter {
     for (double x = 0; x <= waveWidth; x++) {
       double y = amplitude *
               math.sin((x / waveWidth * 2 * math.pi * speed) +
-                  (waveValue * 2 * math.pi * speed)) +
+                  (waveValue * 2 * math.pi * speed) + (phase * 2 * math.pi)) +
           (waveHeight - 100 - yOffset);
       path.lineTo(x, y);
     }
