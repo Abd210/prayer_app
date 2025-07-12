@@ -623,7 +623,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 child: Icon(
                   leading,
-                  color: theme.colorScheme.primary,
+                  // Use a high-contrast color relative to the current background so
+                  // the icon never "blends" with the card or page when themes
+                  // change.
+                  color: theme.colorScheme.onBackground,
                   size: 20,
                 ),
               ),

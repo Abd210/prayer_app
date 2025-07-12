@@ -132,11 +132,15 @@ class ThemeNotifier extends ChangeNotifier {
   /// Provide the Dark Theme
   ThemeData get darkTheme => ThemeData(
         brightness: Brightness.dark,
-        primaryColor: kDarkGreen,
+        // Use a lighter hue for the primary color so that widgets that
+        // paint themselves using `colorScheme.primary` (for example many
+        // `Icon` and `Text` instances across the app) remain legible on the
+        // near-black scaffold background.
+        primaryColor: kMintGreen,
         scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme(
           brightness: Brightness.dark,
-          primary: kDarkGreen,
+          primary: kMintGreen,
           onPrimary: kOffWhite,
           secondary: kMintGreen,
           onSecondary: Colors.black,
