@@ -529,7 +529,7 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                   children: [
                     Icon(_autoAdvance ? Icons.check : null, size: 18),
                     const SizedBox(width: 8),
-                    Text('Auto Next'),
+                    Text(loc.autoNext),
                   ],
                 ),
               ),
@@ -539,7 +539,7 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
                   children: [
                     Icon(!_autoAdvance ? Icons.check : null, size: 18),
                     const SizedBox(width: 8),
-                    Text('Manual Next'),
+                    Text(loc.manualNext),
                   ],
                 ),
               ),

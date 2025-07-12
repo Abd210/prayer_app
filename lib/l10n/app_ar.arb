@@ -297,5 +297,7 @@
   "enableAdhan": "تفعيل الأذان",
   "adhanVolume": "مستوى صوت الأذان",
   "testAdhan": "اختبار الأذان",
-  "adhanVoice": "صوت الأذان"
+  "adhanVoice": "صوت الأذان",
+  "autoNext": "الانتقال التلقائي",
+  "manualNext": "الانتقال اليدوي"
 }

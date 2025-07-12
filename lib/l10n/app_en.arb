@@ -219,5 +219,7 @@
   "adhanSettings": "Adhan Settings",
   "enableAdhan": "Enable Adhan",
   "adhanVolume": "Adhan Volume",
-  "testAdhan": "Test Adhan"
+  "testAdhan": "Test Adhan",
+  "autoNext": "Auto Next",
+  "manualNext": "Manual Next"
 }
