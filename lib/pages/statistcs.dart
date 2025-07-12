@@ -904,47 +904,61 @@ class _StatisticsPageState extends State<StatisticsPage>
 
     final t = Theme.of(ctx);
     final isPrimary = tf == Timeframe.daily;
-    
+    final today = DateTime.now();
+    final todayX = today.difference(first).inDays.toDouble();
+    final hasToday = entries.any((e) =>
+      e.key.year == today.year && e.key.month == today.month && e.key.day == today.day);
+
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      shadowColor: Colors.black26,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 4,
+      shadowColor: t.colorScheme.primary.withOpacity(0.18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Gradient header
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  t.colorScheme.primary.withOpacity(0.85),
+                  t.colorScheme.secondary.withOpacity(0.7),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: (isPrimary ? t.colorScheme.primary : t.colorScheme.secondary).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.show_chart_rounded,
-                    color: isPrimary ? t.colorScheme.primary : t.colorScheme.secondary,
-                    size: 18,
-                  ),
+                Icon(
+                  Icons.show_chart_rounded,
+                  color: Colors.white,
+                  size: 22,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'Azkar Completion ${_getTimeframeTitle(tf)}',
                   style: t.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    fontSize: 17,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
               height: 220,
               child: LineChart(
                 LineChartData(
                   minY: 0,
                   maxY: 100,
                   lineTouchData: LineTouchData(
+                    handleBuiltInTouches: true,
                     touchCallback: (evt, res) {
                       if (evt is FlTapUpEvent &&
                           res != null &&
@@ -958,16 +972,15 @@ class _StatisticsPageState extends State<StatisticsPage>
                     },
                     touchTooltipData: LineTouchTooltipData(
                       tooltipBgColor: t.colorScheme.surface,
-                      tooltipRoundedRadius: 12,
-                      tooltipPadding: const EdgeInsets.all(10),
+                      tooltipRoundedRadius: 14,
+                      tooltipPadding: const EdgeInsets.all(12),
                       tooltipBorder: BorderSide(
-                        color: t.colorScheme.outline.withOpacity(0.2),
+                        color: t.colorScheme.primary.withOpacity(0.2),
                         width: 1,
                       ),
                       getTooltipItems: (touched) => touched.map((pt) {
                         final pct = pt.y.toStringAsFixed(1);
-                        final date =
-                            first.add(Duration(days: pt.x.toInt()));
+                        final date = first.add(Duration(days: pt.x.toInt()));
                         final label = switch (tf) {
                           Timeframe.daily   => DateFormat('d MMM').format(date),
                           Timeframe.weekly  => '${loc.weekShort}${DateFormat('w').format(date)}',
@@ -997,8 +1010,9 @@ class _StatisticsPageState extends State<StatisticsPage>
                             Text(
                               '${v.toInt()} %',
                               style: TextStyle(
-                                fontSize: 11,
-                                color: t.colorScheme.onSurface.withOpacity(0.7),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: t.colorScheme.onSurface.withOpacity(0.8),
                               ),
                             ),
                       ),
@@ -1015,7 +1029,7 @@ class _StatisticsPageState extends State<StatisticsPage>
                     horizontalInterval: 20,
                     drawVerticalLine: false,
                     getDrawingHorizontalLine: (value) => FlLine(
-                      color: t.dividerColor.withOpacity(0.2),
+                      color: t.dividerColor.withOpacity(0.18),
                       strokeWidth: 1,
                       dashArray: [5, 5],
                     ),
@@ -1025,41 +1039,50 @@ class _StatisticsPageState extends State<StatisticsPage>
                     LineChartBarData(
                       spots: spots,
                       isCurved: true,
-                      barWidth: 3,
+                      barWidth: 4,
+                      color: null,
+                      gradient: LinearGradient(
+                        colors: [
+                          t.colorScheme.primary,
+                          t.colorScheme.secondary,
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
                       dotData: FlDotData(
                         show: true,
                         getDotPainter: (spot, percentage, bar, index) {
+                          final isTodayDot = hasToday && (spot.x == todayX);
                           return FlDotCirclePainter(
-                            radius: 4,
-                            color: isPrimary ? t.colorScheme.primary : t.colorScheme.secondary,
-                            strokeWidth: 2,
-                            strokeColor: t.colorScheme.surface,
+                            radius: isTodayDot ? 7 : 4,
+                            color: isTodayDot ? Colors.amber : t.colorScheme.primary,
+                            strokeWidth: isTodayDot ? 3 : 2,
+                            strokeColor: isTodayDot ? Colors.white : t.colorScheme.surface,
+                            // Add glow for today
+                            // (fl_chart doesn't support shadow directly, so use color)
                           );
                         },
                       ),
-                      color: isPrimary ? t.colorScheme.primary : t.colorScheme.secondary,
                       belowBarData: BarAreaData(
                         show: true,
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            (isPrimary ? t.colorScheme.primary : t.colorScheme.secondary)
-                                .withOpacity(0.3),
-                            (isPrimary ? t.colorScheme.primary : t.colorScheme.secondary)
-                                .withOpacity(0.05),
+                            t.colorScheme.primary.withOpacity(0.25),
+                            t.colorScheme.secondary.withOpacity(0.08),
                           ],
                         ),
                       ),
                     ),
                   ],
                 ),
-                duration: const Duration(milliseconds: 400),
-                curve: Curves.easeInOut,
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeInOutCubic,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -2,8 +2,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geocoding/geocoding.dart';
 
-/// A simple Geolocator wrapper for obtaining location,
-/// now with caching to avoid double-prompting or inconsistent states.
+/// A comprehensive Geolocator wrapper for obtaining location,
+/// with manual location support, caching, and frequent updates.
 class LocationService {
   static Position? _cachedPosition;
   static bool _deniedForever = false;
@@ -15,6 +15,12 @@ class LocationService {
   /// Caches the result so both QiblaPage & PrayerTimesPage
   /// see the same location data/permission status.
   static Future<Position?> determinePosition({bool frequentUpdates = false}) async {
+    // First, check if manual location is enabled
+    final manualPosition = await getManualLocationIfEnabled();
+    if (manualPosition != null) {
+      return manualPosition;
+    }
+
     // If we already have a position, check if it needs to be refreshed
     if (_cachedPosition != null && _lastUpdateTime != null) {
       final currentTime = DateTime.now();
@@ -50,6 +56,7 @@ class LocationService {
     try {
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10), // Add timeout
       );
       _cachedPosition = pos; // Cache the location
       _lastUpdateTime = DateTime.now();
@@ -58,7 +65,8 @@ class LocationService {
       await _saveElevationData(pos.altitude);
       
       return pos;
-    } catch (_) {
+    } catch (e) {
+      print('[LocationService] Error getting position: $e');
       return null;
     }
   }
@@ -128,7 +136,7 @@ class LocationService {
     _deniedForever = false;
   }
   
-  /// Get manual location if set
+  /// Get manual location if set and enabled
   static Future<Position?> getManualLocationIfEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     final useManual = prefs.getBool('useManualLocation') ?? false;
@@ -137,7 +145,8 @@ class LocationService {
       final lat = prefs.getDouble('manualLatitude') ?? 0.0;
       final lng = prefs.getDouble('manualLongitude') ?? 0.0;
       
-      if (lat != 0.0 || lng != 0.0) {
+      // Validate coordinates
+      if (_isValidLatitude(lat) && _isValidLongitude(lng)) {
         return Position(
           latitude: lat,
           longitude: lng,
@@ -150,9 +159,83 @@ class LocationService {
           altitudeAccuracy: 0,
           headingAccuracy: 0,
         );
+      } else {
+        print('[LocationService] Invalid manual coordinates: lat=$lat, lng=$lng');
+        // Disable manual location if coordinates are invalid
+        await prefs.setBool('useManualLocation', false);
+        return null;
       }
     }
     
     return null;
+  }
+  
+  /// Validate latitude coordinates
+  static bool _isValidLatitude(double lat) {
+    return lat >= -90 && lat <= 90 && lat != 0.0;
+  }
+  
+  /// Validate longitude coordinates
+  static bool _isValidLongitude(double lng) {
+    return lng >= -180 && lng <= 180 && lng != 0.0;
+  }
+  
+  /// Get location status information
+  static Future<Map<String, dynamic>> getLocationStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final useManual = prefs.getBool('useManualLocation') ?? false;
+    final frequentUpdates = prefs.getBool('frequentLocationUpdates') ?? false;
+    final useElevation = prefs.getBool('useElevation') ?? false;
+    
+    Map<String, dynamic> status = {
+      'useManual': useManual,
+      'frequentUpdates': frequentUpdates,
+      'useElevation': useElevation,
+      'hasValidManualLocation': false,
+      'lastUpdateTime': _lastUpdateTime?.toIso8601String(),
+      'cacheTime': frequentUpdates ? _frequentCacheTimeMs : _standardCacheTimeMs,
+    };
+    
+    if (useManual) {
+      final lat = prefs.getDouble('manualLatitude') ?? 0.0;
+      final lng = prefs.getDouble('manualLongitude') ?? 0.0;
+      status['hasValidManualLocation'] = _isValidLatitude(lat) && _isValidLongitude(lng);
+      status['manualLatitude'] = lat;
+      status['manualLongitude'] = lng;
+      status['manualElevation'] = prefs.getDouble('manualElevation') ?? 0.0;
+    }
+    
+    if (useElevation) {
+      status['elevation'] = prefs.getDouble('manualElevation') ?? 0.0;
+    }
+    
+    return status;
+  }
+  
+  /// Force refresh location (ignores cache)
+  static Future<Position?> forceRefreshLocation() async {
+    _cachedPosition = null;
+    _lastUpdateTime = null;
+    return await determinePosition();
+  }
+  
+  /// Check if location services are available
+  static Future<bool> isLocationServiceAvailable() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return false;
+    
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.whileInUse || 
+           permission == LocationPermission.always;
+  }
+  
+  /// Get location permission status
+  static Future<LocationPermission> getLocationPermission() async {
+    return await Geolocator.checkPermission();
+  }
+  
+  /// Request location permission
+  static Future<LocationPermission> requestLocationPermission() async {
+    return await Geolocator.requestPermission();
   }
 }

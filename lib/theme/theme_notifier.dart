@@ -181,10 +181,11 @@ class ThemeNotifier extends ChangeNotifier {
   // 1) Soft Slate & Periwinkle
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _lightTheme1 {
-    const colBG = Color(0xFFF2F2F7);
-    const colPrimary = Color(0xFF5B6EAE);
-    const colSecondary = Color(0xFFA8B9EE);
-    const colOnDark = Color(0xFF2A2A2A);
+    // Soothing Ocean Breeze - Soft blues with warm undertones
+    const colBG = Color(0xFFF8FAFC);
+    const colPrimary = Color(0xFF4A90E2);
+    const colSecondary = Color(0xFF7BB3F0);
+    const colOnDark = Color(0xFF2C3E50);
 
     return ThemeData(
       brightness: Brightness.light,
@@ -201,7 +202,7 @@ class ThemeNotifier extends ChangeNotifier {
         onError: Colors.white,
         background: colBG,
         onBackground: colOnDark,
-        surface: colSecondary,
+        surface: const Color(0xFFE3F2FD),
         onSurface: colOnDark,
       ),
     );
@@ -211,10 +212,11 @@ class ThemeNotifier extends ChangeNotifier {
   // 2) Teal & Orange
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _lightTheme2 {
-    const background = Color(0xFFF9FAFB);
-    const primary = Color(0xFF009688);
-    const secondary = Color(0xFFFF9800);
-    const onDark = Color(0xFF333333);
+    // Nature Harmony - Balanced teal and coral
+    const background = Color(0xFFF7FDFC);
+    const primary = Color(0xFF00897B);
+    const secondary = Color(0xFFFF7043);
+    const onDark = Color(0xFF263238);
 
     return ThemeData(
       brightness: Brightness.light,
@@ -231,7 +233,7 @@ class ThemeNotifier extends ChangeNotifier {
         onError: Colors.white,
         background: background,
         onBackground: onDark,
-        surface: const Color(0xFFBBE6E3),
+        surface: const Color(0xFFE0F2F1),
         onSurface: onDark,
       ),
     );
@@ -241,10 +243,11 @@ class ThemeNotifier extends ChangeNotifier {
   // 3) Lilac & Deep Purple
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _lightTheme3 {
-    const background = Color(0xFFF6F2FB);
-    const primary = Color(0xFF7E57C2);
-    const secondary = Color(0xFFD1B2FF);
-    const onDark = Color(0xFF4E2E73);
+    // Lavender Dreams - Soft purple with gentle contrast
+    const background = Color(0xFFFAF8FF);
+    const primary = Color(0xFF6A4C93);
+    const secondary = Color(0xFFB39DDB);
+    const onDark = Color(0xFF3E2723);
 
     return ThemeData(
       brightness: Brightness.light,
@@ -261,7 +264,7 @@ class ThemeNotifier extends ChangeNotifier {
         onError: Colors.white,
         background: background,
         onBackground: onDark,
-        surface: const Color(0xFFE9DDFA),
+        surface: const Color(0xFFF3E5F5),
         onSurface: onDark,
       ),
     );
@@ -271,10 +274,11 @@ class ThemeNotifier extends ChangeNotifier {
   // 4) Warm Beige & Brown
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _lightTheme4 {
-    const background = Color(0xFFFAF2EB);
-    const primary = Color(0xFFA38671);
-    const secondary = Color(0xFFD7C3B5);
-    const onDark = Color(0xFF3F2D23);
+    // Desert Sunset - Warm earth tones with better contrast
+    const background = Color(0xFFFDFBF7);
+    const primary = Color(0xFF8D6E63);
+    const secondary = Color(0xFFBCAAA4);
+    const onDark = Color(0xFF3E2723);
 
     return ThemeData(
       brightness: Brightness.light,
@@ -291,7 +295,7 @@ class ThemeNotifier extends ChangeNotifier {
         onError: Colors.white,
         background: background,
         onBackground: onDark,
-        surface: const Color(0xFFEBDDCB),
+        surface: const Color(0xFFEFEBE9),
         onSurface: onDark,
       ),
     );
@@ -331,11 +335,12 @@ class ThemeNotifier extends ChangeNotifier {
   // 6) #7D0A0A (primary), #BF3131 (secondary), #EAD196 (surface), #F3EDC8 (bg)
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _lightTheme6 {
-    const colPrimary = Color(0xFF7D0A0A);
-    const colSecondary = Color(0xFFBF3131);
-    const colSurface = Color(0xFFEAD196);
-    const colBackground = Color(0xFFF3EDC8);
-    const colOnDark = Color(0xFF3B3B3B);
+    // Autumn Warmth - Rich burgundy with golden accents
+    const colPrimary = Color(0xFF8E24AA);
+    const colSecondary = Color(0xFFE1BEE7);
+    const colSurface = Color(0xFFF3E5F5);
+    const colBackground = Color(0xFFFAF8FF);
+    const colOnDark = Color(0xFF2D1B69);
 
     return ThemeData(
       brightness: Brightness.light,
@@ -347,7 +352,7 @@ class ThemeNotifier extends ChangeNotifier {
         primary: colPrimary,
         onPrimary: Colors.white,
         secondary: colSecondary,
-        onSecondary: Colors.white,
+        onSecondary: Colors.black,
         error: Colors.red,
         onError: Colors.white,
         background: colBackground,
@@ -362,11 +367,12 @@ class ThemeNotifier extends ChangeNotifier {
   // 7) #AC1754 (primary), #E53888 (secondary), #F37199 (surface), #F7A8C4 (bg)
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _lightTheme7 {
-    const colPrimary = Color(0xFFAC1754);
-    const colSecondary = Color(0xFFE53888);
-    const colSurface = Color(0xFFF37199);
-    const colBackground = Color(0xFFF7A8C4);
-    const colOnDark = Color(0xFF3B3B3B);
+    // Rose Garden - Elegant pink with mint accents
+    const colPrimary = Color(0xFFAD1457);
+    const colSecondary = Color(0xFF81C784);
+    const colSurface = Color(0xFFE8F5E8);
+    const colBackground = Color(0xFFF8FDF8);
+    const colOnDark = Color(0xFF1B5E20);
 
     return ThemeData(
       brightness: Brightness.light,
@@ -378,7 +384,7 @@ class ThemeNotifier extends ChangeNotifier {
         primary: colPrimary,
         onPrimary: Colors.white,
         secondary: colSecondary,
-        onSecondary: Colors.white,
+        onSecondary: Colors.black,
         error: Colors.red,
         onError: Colors.white,
         background: colBackground,
@@ -393,6 +399,10 @@ class ThemeNotifier extends ChangeNotifier {
   // 8) CUSTOM THEME (User picks the 4 colors)
   // ─────────────────────────────────────────────────────────────────────────────
   ThemeData get _customTheme {
+    // Ensure proper contrast by calculating appropriate onBackground color
+    Color onBackgroundColor = _calculateContrastColor(_customBackground);
+    Color onSurfaceColor = _calculateContrastColor(_customSurface);
+    
     return ThemeData(
       brightness: Brightness.light,
       primaryColor: _customPrimary,
@@ -407,10 +417,20 @@ class ThemeNotifier extends ChangeNotifier {
         error: Colors.red,
         onError: Colors.white,
         background: _customBackground,
-        onBackground: Colors.black87,
+        onBackground: onBackgroundColor,
         surface: _customSurface,
-        onSurface: Colors.black87,
+        onSurface: onSurfaceColor,
       ),
     );
+  }
+  
+  /// Calculate appropriate contrast color for text/icons based on background
+  Color _calculateContrastColor(Color backgroundColor) {
+    // Calculate luminance of background color
+    double luminance = backgroundColor.computeLuminance();
+    
+    // If background is light (high luminance), use dark text
+    // If background is dark (low luminance), use light text
+    return luminance > 0.5 ? Colors.black87 : Colors.white;
   }
 }

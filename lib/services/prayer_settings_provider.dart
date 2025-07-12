@@ -192,14 +192,61 @@ class PrayerSettingsProvider extends ChangeNotifier {
   }
   
   void setManualLocation(double latitude, double longitude) {
+    // Validate coordinates before setting
+    if (latitude < -90 || latitude > 90) {
+      print('[PrayerSettingsProvider] Invalid latitude: $latitude');
+      return;
+    }
+    if (longitude < -180 || longitude > 180) {
+      print('[PrayerSettingsProvider] Invalid longitude: $longitude');
+      return;
+    }
+    
     _manualLatitude = latitude;
     _manualLongitude = longitude;
     _saveAndNotify();
+    
+    print('[PrayerSettingsProvider] Manual location set: $latitude, $longitude');
   }
   
   void toggleFrequentLocationUpdates(bool value) {
     _frequentLocationUpdates = value;
     _saveAndNotify();
+    
+    print('[PrayerSettingsProvider] Frequent location updates: ${value ? 'enabled' : 'disabled'}');
+  }
+  
+  /// Get current location status
+  Map<String, dynamic> getLocationStatus() {
+    return {
+      'useManualLocation': _useManualLocation,
+      'manualLatitude': _manualLatitude,
+      'manualLongitude': _manualLongitude,
+      'useElevation': _useElevation,
+      'manualElevation': _manualElevation,
+      'frequentLocationUpdates': _frequentLocationUpdates,
+      'hasValidManualLocation': _useManualLocation && 
+        _manualLatitude >= -90 && _manualLatitude <= 90 && 
+        _manualLongitude >= -180 && _manualLongitude <= 180 &&
+        (_manualLatitude != 0.0 || _manualLongitude != 0.0),
+    };
+  }
+  
+  /// Validate and fix manual location settings
+  bool validateManualLocation() {
+    if (!_useManualLocation) return true;
+    
+    bool isValid = _manualLatitude >= -90 && _manualLatitude <= 90 && 
+                   _manualLongitude >= -180 && _manualLongitude <= 180 &&
+                   (_manualLatitude != 0.0 || _manualLongitude != 0.0);
+    
+    if (!isValid) {
+      print('[PrayerSettingsProvider] Invalid manual location detected, disabling...');
+      _useManualLocation = false;
+      _saveAndNotify();
+    }
+    
+    return isValid;
   }
   
   // Reset all prayer time adjustments to 0
