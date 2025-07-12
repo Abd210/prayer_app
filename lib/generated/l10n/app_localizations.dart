@@ -1072,6 +1072,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Test Adhan'**
   String get testAdhan;
+
+  /// No description provided for @autoNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Next'**
+  String get autoNext;
+
+  /// No description provided for @manualNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Next'**
+  String get manualNext;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

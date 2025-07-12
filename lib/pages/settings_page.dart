@@ -626,8 +626,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         leading: Icons.notifications_active_outlined,
                         title: l10n.enableNotifications,
                         subtitle: enableNotifications 
-                          ? 'Prayer time notifications are enabled'
-                          : 'Prayer time notifications are disabled',
+                          ? (selectedLanguage == 'العربية' ? 'إشعارات أوقات الصلاة مفعلة' : 'Prayer time notifications are enabled')
+                          : (selectedLanguage == 'العربية' ? 'إشعارات أوقات الصلاة معطلة' : 'Prayer time notifications are disabled'),
                         trailing: Switch(
                           value: enableNotifications,
                           onChanged: (v) {
@@ -636,7 +636,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             _saveLocalPrefs();
                             _showSnackBar(
                               context, 
-                              v ? 'Notifications enabled' : 'Notifications disabled',
+                              v ? (selectedLanguage == 'العربية' ? 'تم تفعيل الإشعارات' : 'Notifications enabled') : (selectedLanguage == 'العربية' ? 'تم إلغاء الإشعارات' : 'Notifications disabled'),
                               isError: false
                             );
                           },
@@ -652,7 +652,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             children: [
                               // Notification Advance Time
                               Text(
-                                'Notification Advance Time',
+                                selectedLanguage == 'العربية' ? 'وقت التبكير بالإشعارات' : 'Notification Advance Time',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -688,7 +688,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      '${_notificationAdvanceTime} min',
+                                      selectedLanguage == 'العربية' ? '${_notificationAdvanceTime} دقيقة' : '${_notificationAdvanceTime} min',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
@@ -710,7 +710,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Notification Sound',
+                                      selectedLanguage == 'العربية' ? 'صوت الإشعارات' : 'Notification Sound',
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -739,7 +739,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Allow Adhan Sound',
+                                      selectedLanguage == 'العربية' ? 'السماح بصوت الأذان' : 'Allow Adhan Sound',
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -762,7 +762,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.notifications_active),
-                                  label: const Text('Test Prayer Notification'),
+                                  label: Text(selectedLanguage == 'العربية' ? 'اختبار إشعار الصلاة' : 'Test Prayer Notification'),
                                   onPressed: () => _testPrayerNotification(context),
                                   style: OutlinedButton.styleFrom(
                                     side: BorderSide(color: theme.colorScheme.primary),
@@ -794,7 +794,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'Notification Info',
+                                          selectedLanguage == 'العربية' ? 'معلومات الإشعارات' : 'Notification Info',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w600,
                                             color: theme.colorScheme.primary,
@@ -804,10 +804,15 @@ class _SettingsPageState extends State<SettingsPage> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '• Advance time: Get notified before prayer time\n'
-                                      '• Sound: Play adhan sound with notifications\n'
-                                      '• Daily: Notifications repeat every day\n'
-                                      '• Test: Try the notification system',
+                                      selectedLanguage == 'العربية'
+                                        ? '• وقت التبكير: احصل على إشعار قبل وقت الصلاة\n'
+                                          '• الصوت: تشغيل صوت الأذان مع الإشعارات\n'
+                                          '• يومياً: تتكرر الإشعارات كل يوم\n'
+                                          '• اختبار: جرب نظام الإشعارات'
+                                        : '• Advance time: Get notified before prayer time\n'
+                                          '• Sound: Play adhan sound with notifications\n'
+                                          '• Daily: Notifications repeat every day\n'
+                                          '• Test: Try the notification system',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -825,8 +830,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         leading: Icons.menu_book_outlined,
                         title: l10n.enableDailyHadith,
                         subtitle: enableDailyHadith 
-                          ? 'Daily hadith notifications are enabled'
-                          : 'Daily hadith notifications are disabled',
+                          ? (selectedLanguage == 'العربية' ? 'إشعارات الحديث اليومي مفعلة' : 'Daily hadith notifications are enabled')
+                          : (selectedLanguage == 'العربية' ? 'إشعارات الحديث اليومي معطلة' : 'Daily hadith notifications are disabled'),
                         trailing: Switch(
                           value: enableDailyHadith,
                           onChanged: (v) {
@@ -836,7 +841,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             _saveLocalPrefs();
                             _showSnackBar(
                               context, 
-                              v ? 'Daily hadith enabled' : 'Daily hadith disabled',
+                              v ? (selectedLanguage == 'العربية' ? 'تم تفعيل الحديث اليومي' : 'Daily hadith enabled') : (selectedLanguage == 'العربية' ? 'تم إلغاء الحديث اليومي' : 'Daily hadith disabled'),
                               isError: false
                             );
                           },
@@ -851,7 +856,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hadith Notification Time',
+                                selectedLanguage == 'العربية' ? 'وقت إشعار الحديث اليومي' : 'Hadith Notification Time',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -863,7 +868,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   Expanded(
                                     child: OutlinedButton.icon(
                                       icon: const Icon(Icons.access_time),
-                                      label: const Text('Set Time'),
+                                      label: Text(selectedLanguage == 'العربية' ? 'تعيين الوقت' : 'Set Time'),
                                       onPressed: () => _showTimePickerDialog(context),
                                       style: OutlinedButton.styleFrom(
                                         side: BorderSide(color: theme.colorScheme.primary),
@@ -875,7 +880,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   Expanded(
                                     child: OutlinedButton.icon(
                                       icon: const Icon(Icons.notifications_active),
-                                      label: const Text('Test'),
+                                      label: Text(selectedLanguage == 'العربية' ? 'اختبار' : 'Test'),
                                       onPressed: () => _testDailyHadith(context),
                                       style: OutlinedButton.styleFrom(
                                         side: BorderSide(color: theme.colorScheme.secondary),
@@ -901,13 +906,13 @@ class _SettingsPageState extends State<SettingsPage> {
                                     Row(
                                       children: [
                                         Icon(
-                                          Icons.info_outline,
+                                          Icons.menu_book_outlined,
                                           size: 16,
                                           color: theme.colorScheme.secondary,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'Daily Hadith Info',
+                                          selectedLanguage == 'العربية' ? 'معلومات الحديث اليومي' : 'Daily Hadith Info',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w600,
                                             color: theme.colorScheme.secondary,
@@ -917,7 +922,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Receive daily hadith notifications to increase your knowledge and spirituality. You can set a preferred time to receive these notifications.',
+                                      selectedLanguage == 'العربية'
+                                        ? 'استقبل إشعارات الحديث اليومي لزيادة معرفتك وروحانيتك. يمكنك تعيين وقت مفضل لاستقبال هذه الإشعارات.'
+                                        : 'Receive daily hadith notifications to increase your knowledge and spirituality. You can set a preferred time to receive these notifications.',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -974,17 +981,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   // Advanced Settings
                   _buildSettingsSection(
                     context,
-                    title: 'Advanced Settings',
+                    title: selectedLanguage == 'العربية' ? 'الإعدادات المتقدمة' : 'Advanced Settings',
                     icon: Icons.tune_outlined,
                     children: [
                       // Performance Settings
                       _buildSettingTile(
                         context,
                         leading: Icons.auto_awesome,
-                        title: 'Auto-refresh Prayer Times',
+                        title: selectedLanguage == 'العربية' ? 'تحديث تلقائي لأوقات الصلاة' : 'Auto-refresh Prayer Times',
                         subtitle: _autoRefreshEnabled 
-                          ? 'Prayer times refresh automatically'
-                          : 'Manual refresh required',
+                          ? (selectedLanguage == 'العربية' ? 'تحديث أوقات الصلاة تلقائياً' : 'Prayer times refresh automatically')
+                          : (selectedLanguage == 'العربية' ? 'يتطلب التحديث اليدوي' : 'Manual refresh required'),
                         trailing: Switch(
                           value: _autoRefreshEnabled,
                           onChanged: (v) {
@@ -992,7 +999,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             _saveAutoRefreshEnabled(v);
                             _showSnackBar(
                               context, 
-                              v ? 'Auto-refresh enabled' : 'Auto-refresh disabled',
+                              v ? (selectedLanguage == 'العربية' ? 'تم تفعيل التحديث التلقائي' : 'Auto-refresh enabled') : (selectedLanguage == 'العربية' ? 'تم إلغاء التحديث التلقائي' : 'Auto-refresh disabled'),
                               isError: false
                             );
                           },
@@ -1002,10 +1009,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildSettingTile(
                         context,
                         leading: Icons.data_usage,
-                        title: 'Data Saving Mode',
+                        title: selectedLanguage == 'العربية' ? 'وضع توفير البيانات' : 'Data Saving Mode',
                         subtitle: _dataSavingEnabled 
-                          ? 'Optimized for limited data'
-                          : 'Full features enabled',
+                          ? (selectedLanguage == 'العربية' ? 'محسن للبيانات المحدودة' : 'Optimized for limited data')
+                          : (selectedLanguage == 'العربية' ? 'جميع الميزات مفعلة' : 'Full features enabled'),
                         trailing: Switch(
                           value: _dataSavingEnabled,
                           onChanged: (v) {
@@ -1013,7 +1020,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             _saveDataSavingEnabled(v);
                             _showSnackBar(
                               context, 
-                              v ? 'Data saving enabled' : 'Data saving disabled',
+                              v ? (selectedLanguage == 'العربية' ? 'تم تفعيل توفير البيانات' : 'Data saving enabled') : (selectedLanguage == 'العربية' ? 'تم إلغاء توفير البيانات' : 'Data saving disabled'),
                               isError: false
                             );
                           },
@@ -1023,16 +1030,16 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildSettingTile(
                         context,
                         leading: Icons.schedule,
-                        title: 'Cache Duration',
-                        subtitle: 'How long to cache prayer times',
+                        title: selectedLanguage == 'العربية' ? 'مدة التخزين المؤقت' : 'Cache Duration',
+                        subtitle: selectedLanguage == 'العربية' ? 'كم من الوقت لتخزين أوقات الصلاة' : 'How long to cache prayer times',
                         trailing: DropdownButton<String>(
                           value: _cacheDuration,
                           underline: Container(),
                           items: [
-                            DropdownMenuItem(value: '1h', child: Text('1 Hour')),
-                            DropdownMenuItem(value: '6h', child: Text('6 Hours')),
-                            DropdownMenuItem(value: '12h', child: Text('12 Hours')),
-                            DropdownMenuItem(value: '24h', child: Text('24 Hours')),
+                            DropdownMenuItem(value: '1h', child: Text(selectedLanguage == 'العربية' ? 'ساعة واحدة' : '1 Hour')),
+                            DropdownMenuItem(value: '6h', child: Text(selectedLanguage == 'العربية' ? '6 ساعات' : '6 Hours')),
+                            DropdownMenuItem(value: '12h', child: Text(selectedLanguage == 'العربية' ? '12 ساعة' : '12 Hours')),
+                            DropdownMenuItem(value: '24h', child: Text(selectedLanguage == 'العربية' ? '24 ساعة' : '24 Hours')),
                           ],
                           onChanged: (value) {
                             if (value != null) {
@@ -1046,8 +1053,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildSettingTile(
                         context,
                         leading: Icons.storage,
-                        title: 'Storage Management',
-                        subtitle: 'Manage app data and cache',
+                        title: selectedLanguage == 'العربية' ? 'إدارة التخزين' : 'Storage Management',
+                        subtitle: selectedLanguage == 'العربية' ? 'إدارة بيانات التطبيق والتخزين المؤقت' : 'Manage app data and cache',
                         trailing: IconButton(
                           icon: const Icon(Icons.settings),
                           onPressed: () => _showStorageManagement(context),
@@ -1056,8 +1063,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildSettingTile(
                         context,
                         leading: Icons.backup,
-                        title: 'Backup Settings',
-                        subtitle: 'Backup your settings to cloud',
+                        title: selectedLanguage == 'العربية' ? 'نسخ احتياطي للإعدادات' : 'Backup Settings',
+                        subtitle: selectedLanguage == 'العربية' ? 'نسخ احتياطي لإعداداتك إلى السحابة' : 'Backup your settings to cloud',
                         trailing: IconButton(
                           icon: const Icon(Icons.cloud_upload),
                           onPressed: () => _backupSettings(context),
@@ -1066,8 +1073,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildSettingTile(
                         context,
                         leading: Icons.restore,
-                        title: 'Restore Settings',
-                        subtitle: 'Restore settings from backup',
+                        title: selectedLanguage == 'العربية' ? 'استعادة الإعدادات' : 'Restore Settings',
+                        subtitle: selectedLanguage == 'العربية' ? 'استعادة الإعدادات من النسخة الاحتياطية' : 'Restore settings from backup',
                         trailing: IconButton(
                           icon: const Icon(Icons.cloud_download),
                           onPressed: () => _restoreSettings(context),
@@ -1077,8 +1084,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildSettingTile(
                         context,
                         leading: Icons.refresh,
-                        title: 'Reset All Settings',
-                        subtitle: 'Reset to default settings',
+                        title: selectedLanguage == 'العربية' ? 'إعادة تعيين جميع الإعدادات' : 'Reset All Settings',
+                        subtitle: selectedLanguage == 'العربية' ? 'إعادة تعيين إلى الإعدادات الافتراضية' : 'Reset to default settings',
                         trailing: IconButton(
                           icon: const Icon(Icons.restore_page),
                           onPressed: () => _showResetConfirmation(context),
@@ -1092,7 +1099,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   // Location Permissions Section
                   _buildSettingsSection(
                     context,
-                    title: 'Location Permissions',
+                    title: selectedLanguage == 'العربية' ? 'أذونات الموقع' : 'Location Permissions',
                     icon: Icons.security,
                     children: [
                       FutureBuilder<bool>(
@@ -1102,10 +1109,10 @@ class _SettingsPageState extends State<SettingsPage> {
                           return _buildSettingTile(
                             context,
                             leading: isAvailable ? Icons.check_circle : Icons.error,
-                            title: 'Location Services',
+                            title: selectedLanguage == 'العربية' ? 'خدمات الموقع' : 'Location Services',
                             subtitle: isAvailable 
-                              ? 'Location services are available'
-                              : 'Location services are disabled',
+                              ? (selectedLanguage == 'العربية' ? 'خدمات الموقع متاحة' : 'Location services are available')
+                              : (selectedLanguage == 'العربية' ? 'خدمات الموقع معطلة' : 'Location services are disabled'),
                             trailing: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
@@ -1113,7 +1120,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                isAvailable ? 'ON' : 'OFF',
+                                isAvailable ? (selectedLanguage == 'العربية' ? 'تشغيل' : 'ON') : (selectedLanguage == 'العربية' ? 'إيقاف' : 'OFF'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -1135,22 +1142,22 @@ class _SettingsPageState extends State<SettingsPage> {
                           switch (permission) {
                             case LocationPermission.whileInUse:
                             case LocationPermission.always:
-                              statusText = 'Permission granted';
+                              statusText = selectedLanguage == 'العربية' ? 'تم منح الإذن' : 'Permission granted';
                               statusIcon = Icons.check_circle;
                               statusColor = Colors.green;
                               break;
                             case LocationPermission.denied:
-                              statusText = 'Permission denied';
+                              statusText = selectedLanguage == 'العربية' ? 'تم رفض الإذن' : 'Permission denied';
                               statusIcon = Icons.error;
                               statusColor = Colors.orange;
                               break;
                             case LocationPermission.deniedForever:
-                              statusText = 'Permission denied forever';
+                              statusText = selectedLanguage == 'العربية' ? 'تم رفض الإذن نهائياً' : 'Permission denied forever';
                               statusIcon = Icons.block;
                               statusColor = Colors.red;
                               break;
                             default:
-                              statusText = 'Unknown status';
+                              statusText = selectedLanguage == 'العربية' ? 'حالة غير معروفة' : 'Unknown status';
                               statusIcon = Icons.help;
                               statusColor = Colors.grey;
                           }
@@ -1158,7 +1165,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           return _buildSettingTile(
                             context,
                             leading: statusIcon,
-                            title: 'Location Permission',
+                            title: selectedLanguage == 'العربية' ? 'إذن الموقع' : 'Location Permission',
                             subtitle: statusText,
                             trailing: permission == LocationPermission.denied
                               ? TextButton(
@@ -1166,7 +1173,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     await LocationService.requestLocationPermission();
                                     setState(() {}); // Refresh the UI
                                   },
-                                  child: const Text('Request'),
+                                  child: Text(selectedLanguage == 'العربية' ? 'طلب' : 'Request'),
                                 )
                               : Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1175,9 +1182,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    permission == LocationPermission.whileInUse ? 'WHILE IN USE' :
-                                    permission == LocationPermission.always ? 'ALWAYS' :
-                                    permission == LocationPermission.denied ? 'DENIED' : 'FOREVER',
+                                    permission == LocationPermission.whileInUse ? (selectedLanguage == 'العربية' ? 'أثناء الاستخدام' : 'WHILE IN USE') :
+                                    permission == LocationPermission.always ? (selectedLanguage == 'العربية' ? 'دائماً' : 'ALWAYS') :
+                                    permission == LocationPermission.denied ? (selectedLanguage == 'العربية' ? 'مرفوض' : 'DENIED') : (selectedLanguage == 'العربية' ? 'نهائياً' : 'FOREVER'),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
@@ -1212,7 +1219,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Location Help',
+                                    selectedLanguage == 'العربية' ? 'مساعدة الموقع' : 'Location Help',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       color: theme.colorScheme.secondary,
@@ -1222,10 +1229,15 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                '• Manual location: Enter specific coordinates for accurate prayer times\n'
-                                '• High accuracy: Uses elevation data for more precise calculations\n'
-                                '• Frequent updates: Refreshes location every 5 minutes instead of 1 hour\n'
-                                '• GPS location: Automatically uses your device\'s GPS',
+                                selectedLanguage == 'العربية' 
+                                  ? '• الموقع اليدوي: أدخل إحداثيات محددة لأوقات صلاة دقيقة\n'
+                                    '• الدقة العالية: يستخدم بيانات الارتفاع لحسابات أكثر دقة\n'
+                                    '• التحديثات المتكررة: يحدث الموقع كل 5 دقائق بدلاً من ساعة واحدة\n'
+                                    '• موقع GPS: يستخدم GPS جهازك تلقائياً'
+                                  : '• Manual location: Enter specific coordinates for accurate prayer times\n'
+                                    '• High accuracy: Uses elevation data for more precise calculations\n'
+                                    '• Frequent updates: Refreshes location every 5 minutes instead of 1 hour\n'
+                                    '• GPS location: Automatically uses your device\'s GPS',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: theme.colorScheme.onSurface.withOpacity(0.7),

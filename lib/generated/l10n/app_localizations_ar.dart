@@ -524,4 +524,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get testAdhan => 'اختبار الأذان';
+
+  @override
+  String get autoNext => 'الانتقال التلقائي';
+
+  @override
+  String get manualNext => 'الانتقال اليدوي';
 }

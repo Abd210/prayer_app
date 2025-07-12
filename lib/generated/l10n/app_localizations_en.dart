@@ -524,4 +524,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get testAdhan => 'Test Adhan';
+
+  @override
+  String get autoNext => 'Auto Next';
+
+  @override
+  String get manualNext => 'Manual Next';
 }
