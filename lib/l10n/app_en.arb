@@ -243,5 +243,9 @@
   "azkarRemindersEnabledMsg": "Azkar reminders enabled",
   "azkarRemindersDisabledMsg": "Azkar reminders disabled",
   "resetToDefaultsMsg": "Reset to default settings",
-  "testReminderSent": "Test reminder sent!"
+  "testReminderSent": "Test reminder sent!",
+  "testBackgroundNotification": "Test Background Notification",
+  "backgroundTestTitle": "Background Test",
+  "backgroundTestBody": "This is a test notification when the app is closed. You can close the app now and wait 30 seconds.",
+  "backgroundTestScheduled": "Background notification test scheduled. Close the app and wait 30 seconds."
 }

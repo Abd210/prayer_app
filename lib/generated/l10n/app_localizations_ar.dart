@@ -596,4 +596,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get testReminderSent => 'تم إرسال تذكير تجريبي!';
+
+  @override
+  String get testBackgroundNotification => 'اختبار الإشعار في الخلفية';
+
+  @override
+  String get backgroundTestTitle => 'اختبار الإشعار في الخلفية';
+
+  @override
+  String get backgroundTestBody => 'هذا اختبار للإشعار عندما يكون التطبيق مغلقاً. يمكنك إغلاق التطبيق الآن والانتظار 30 ثانية.';
+
+  @override
+  String get backgroundTestScheduled => 'تم جدولة اختبار الإشعار في الخلفية. أغلق التطبيق وانتظر 30 ثانية.';
 }

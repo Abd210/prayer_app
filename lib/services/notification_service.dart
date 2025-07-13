@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -134,8 +135,6 @@ class NotificationService {
             autoCancel: true,
             // Make notification persistent
             category: AndroidNotificationCategory.reminder,
-            // High priority for exact timing
-            priority: Priority.high,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -147,7 +146,6 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
         payload: prayerName,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
 
       print('[NotificationService] Successfully scheduled notification ID: $id for $scheduledDate');
@@ -229,4 +227,60 @@ class NotificationService {
   // Get adhan settings
   bool get isAdhanEnabled => _adhanService.isEnabled;
   double get adhanVolume => _adhanService.volume;
+  
+  /// Reschedule all notifications when app starts (in case app was force-closed)
+  Future<void> rescheduleNotificationsOnStartup() async {
+    if (kIsWeb) return;
+    
+    print('[NotificationService] Rescheduling notifications on startup...');
+    
+    try {
+      // Check if notifications are enabled
+      final prefs = await SharedPreferences.getInstance();
+      final notificationsEnabled = prefs.getBool('enableNotifications') ?? true;
+      
+      if (!notificationsEnabled) {
+        print('[NotificationService] Notifications disabled, skipping reschedule');
+        return;
+      }
+      
+      // Cancel any existing notifications first
+      await cancelAllNotifications();
+      
+      // Get current pending notifications for debugging
+      final pendingNotifications = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      print('[NotificationService] Found ${pendingNotifications.length} existing pending notifications');
+      
+      // The actual rescheduling will be done by the prayer times page
+      // when it calls _scheduleToday() which will then call this service
+      
+    } catch (e) {
+      print('[NotificationService] Error during startup reschedule: $e');
+    }
+  }
+  
+  /// Check if notifications are working properly
+  Future<bool> checkNotificationPermissions() async {
+    if (kIsWeb) return false;
+    
+    try {
+      if (Platform.isAndroid) {
+        final androidPlugin = flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final granted = await androidPlugin?.areNotificationsEnabled() ?? false;
+        print('[NotificationService] Android notifications enabled: $granted');
+        return granted;
+      } else if (Platform.isIOS) {
+        final iosPlugin = flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final granted = await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+        print('[NotificationService] iOS notifications granted: $granted');
+        return granted;
+      }
+    } catch (e) {
+      print('[NotificationService] Error checking permissions: $e');
+    }
+    
+    return false;
+  }
 }

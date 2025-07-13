@@ -22,6 +22,9 @@ void main() async {
 
   await NotificationService().init();
   await AzkarReminderService().init();
+  
+  // Reschedule notifications on startup in case app was force-closed
+  await NotificationService().rescheduleNotificationsOnStartup();
 
   runApp(
     MultiProvider(

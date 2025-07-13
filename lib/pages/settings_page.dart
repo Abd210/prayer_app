@@ -856,6 +856,21 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
                               const SizedBox(height: 8),
+                              // Background Notification Test Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.timer),
+                                  label: Text(selectedLanguage == 'العربية' ? 'اختبار الإشعار في الخلفية' : 'Test Background Notification'),
+                                  onPressed: () => _testBackgroundNotification(context),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.secondary),
+                                    foregroundColor: theme.colorScheme.secondary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
                               // Notification Info
                               Container(
                                 padding: const EdgeInsets.all(12),
@@ -2189,6 +2204,41 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       _showSnackBar(context, 'Failed to send test notification: $e', isError: true);
     }
+  }
+  
+  Future<void> _testBackgroundNotification(BuildContext context) async {
+    try {
+      final selectedLanguage = await _getSelectedLanguage();
+      
+      // Schedule a notification for 30 seconds from now
+      final testTime = DateTime.now().add(const Duration(seconds: 30));
+      
+      await NotificationService().scheduleNotification(
+        id: 888,
+        title: selectedLanguage == 'العربية' ? 'اختبار الإشعار في الخلفية' : 'Background Test',
+        body: selectedLanguage == 'العربية' 
+          ? 'هذا اختبار للإشعار عندما يكون التطبيق مغلقاً. يمكنك إغلاق التطبيق الآن والانتظار 30 ثانية.'
+          : 'This is a test notification when the app is closed. You can close the app now and wait 30 seconds.',
+        scheduledDate: testTime,
+        repeatDaily: false,
+        prayerName: 'BACKGROUND_TEST',
+      );
+      
+      _showSnackBar(
+        context, 
+        selectedLanguage == 'العربية' 
+          ? 'تم جدولة اختبار الإشعار في الخلفية. أغلق التطبيق وانتظر 30 ثانية.'
+          : 'Background notification test scheduled. Close the app and wait 30 seconds.',
+        isError: false
+      );
+    } catch (e) {
+      _showSnackBar(context, 'Failed to schedule background test: $e', isError: true);
+    }
+  }
+  
+  Future<String> _getSelectedLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('selectedLanguage') ?? 'English';
   }
   
   // Daily Hadith methods

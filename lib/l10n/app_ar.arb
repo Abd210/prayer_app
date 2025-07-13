@@ -321,5 +321,9 @@
   "azkarRemindersEnabledMsg": "تم تفعيل تذكير الأذكار",
   "azkarRemindersDisabledMsg": "تم إلغاء تذكير الأذكار",
   "resetToDefaultsMsg": "تم إعادة التعيين للافتراضي",
-  "testReminderSent": "تم إرسال تذكير تجريبي!"
+  "testReminderSent": "تم إرسال تذكير تجريبي!",
+  "testBackgroundNotification": "اختبار الإشعار في الخلفية",
+  "backgroundTestTitle": "اختبار الإشعار في الخلفية",
+  "backgroundTestBody": "هذا اختبار للإشعار عندما يكون التطبيق مغلقاً. يمكنك إغلاق التطبيق الآن والانتظار 30 ثانية.",
+  "backgroundTestScheduled": "تم جدولة اختبار الإشعار في الخلفية. أغلق التطبيق وانتظر 30 ثانية."
 }

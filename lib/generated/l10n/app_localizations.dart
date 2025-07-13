@@ -1216,6 +1216,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Test reminder sent!'**
   String get testReminderSent;
+
+  /// No description provided for @testBackgroundNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Background Notification'**
+  String get testBackgroundNotification;
+
+  /// No description provided for @backgroundTestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Test'**
+  String get backgroundTestTitle;
+
+  /// No description provided for @backgroundTestBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a test notification when the app is closed. You can close the app now and wait 30 seconds.'**
+  String get backgroundTestBody;
+
+  /// No description provided for @backgroundTestScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Background notification test scheduled. Close the app and wait 30 seconds.'**
+  String get backgroundTestScheduled;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

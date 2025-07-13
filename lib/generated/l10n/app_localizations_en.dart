@@ -596,4 +596,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get testReminderSent => 'Test reminder sent!';
+
+  @override
+  String get testBackgroundNotification => 'Test Background Notification';
+
+  @override
+  String get backgroundTestTitle => 'Background Test';
+
+  @override
+  String get backgroundTestBody => 'This is a test notification when the app is closed. You can close the app now and wait 30 seconds.';
+
+  @override
+  String get backgroundTestScheduled => 'Background notification test scheduled. Close the app and wait 30 seconds.';
 }
