@@ -530,4 +530,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manualNext => 'Manual Next';
+
+  @override
+  String get autoDetectMethod => 'Auto-detect Method';
+
+  @override
+  String get autoDetectMethodSubtitle => 'Automatically detect calculation method based on your location';
+
+  @override
+  String get manualCalculationMethod => 'Manual Calculation Method';
+
+  @override
+  String get detectMethodNow => 'Detect Method Now';
+
+  @override
+  String get detectingMethod => 'Detecting method...';
+
+  @override
+  String get methodUpdatedAuto => 'Calculation method updated automatically!';
+
+  @override
+  String get methodUnchanged => 'Calculation method unchanged';
+
+  @override
+  String get methodUpdatedForLocation => 'Calculation method updated automatically for your new location';
 }

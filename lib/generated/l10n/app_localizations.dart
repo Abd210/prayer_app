@@ -1084,6 +1084,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manual Next'**
   String get manualNext;
+
+  /// No description provided for @autoDetectMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detect Method'**
+  String get autoDetectMethod;
+
+  /// No description provided for @autoDetectMethodSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically detect calculation method based on your location'**
+  String get autoDetectMethodSubtitle;
+
+  /// No description provided for @manualCalculationMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Calculation Method'**
+  String get manualCalculationMethod;
+
+  /// No description provided for @detectMethodNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect Method Now'**
+  String get detectMethodNow;
+
+  /// No description provided for @detectingMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting method...'**
+  String get detectingMethod;
+
+  /// No description provided for @methodUpdatedAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation method updated automatically!'**
+  String get methodUpdatedAuto;
+
+  /// No description provided for @methodUnchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation method unchanged'**
+  String get methodUnchanged;
+
+  /// No description provided for @methodUpdatedForLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation method updated automatically for your new location'**
+  String get methodUpdatedForLocation;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

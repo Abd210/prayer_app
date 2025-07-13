@@ -209,30 +209,108 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: l10n.calculationMethodTitle,
                     icon: Icons.calculate_outlined,
                     children: [
+                      // Auto-detection toggle
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.auto_awesome,
+                        title: l10n.autoDetectMethod,
+                        subtitle: l10n.autoDetectMethodSubtitle,
+                        trailing: FutureBuilder<bool>(
+                          future: prayerSettings.isAutoDetectionEnabled(),
+                          builder: (context, snapshot) {
+                            return Switch(
+                              value: snapshot.data ?? true,
+                              onChanged: (value) async {
+                                await prayerSettings.setAutoDetectionEnabled(value);
+                                setState(() {}); // Refresh UI
+                              },
+                              activeColor: theme.colorScheme.primary,
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      // Manual method selection
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: DropdownButtonFormField<CalculationMethod>(
-                          value: prayerSettings.calculationMethod,
-                          decoration: InputDecoration(
-                            labelText: l10n.calculationMethodLabel,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.calculate, size: 20, color: theme.colorScheme.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.manualCalculationMethod,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
-                            filled: true,
-                            fillColor: theme.colorScheme.surface,
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<CalculationMethod>(
+                              value: prayerSettings.calculationMethod,
+                              decoration: InputDecoration(
+                                labelText: l10n.calculationMethodLabel,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: theme.colorScheme.surface,
+                              ),
+                              onChanged: (CalculationMethod? value) {
+                                if (value != null) {
+                                  prayerSettings.updateCalculationMethod(value);
+                                }
+                              },
+                              items: calculationMethods
+                                  .map((m) => DropdownMenuItem(
+                                        value: m,
+                                        child: Text(methodName(m),
+                                            style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+                                      ))
+                                  .toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Auto-detect button
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.my_location),
+                            label: Text(l10n.detectMethodNow),
+                            onPressed: () async {
+                              _showLoadingDialog(context, l10n.detectingMethod);
+                              
+                              final changed = await prayerSettings.autoDetectCalculationMethod();
+                              Navigator.pop(context); // Close loading dialog
+                              
+                              if (changed) {
+                                _showSnackBar(
+                                  context, 
+                                  l10n.methodUpdatedAuto,
+                                  isError: false
+                                );
+                              } else {
+                                _showSnackBar(
+                                  context, 
+                                  l10n.methodUnchanged,
+                                  isError: false
+                                );
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: theme.colorScheme.primary),
+                              foregroundColor: theme.colorScheme.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
                           ),
-                          onChanged: (CalculationMethod? value) {
-                            if (value != null) {
-                              prayerSettings.updateCalculationMethod(value);
-                            }
-                          },
-                          items: calculationMethods
-                              .map((m) => DropdownMenuItem(
-                                    value: m,
-                                    child: Text(methodName(m),
-                                        style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
-                                  ))
-                              .toList(),
                         ),
                       ),
                     ],

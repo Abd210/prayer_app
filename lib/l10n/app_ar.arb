@@ -299,5 +299,13 @@
   "testAdhan": "اختبار الأذان",
   "adhanVoice": "صوت الأذان",
   "autoNext": "الانتقال التلقائي",
-  "manualNext": "الانتقال اليدوي"
+  "manualNext": "الانتقال اليدوي",
+  "autoDetectMethod": "اكتشاف تلقائي للطريقة",
+  "autoDetectMethodSubtitle": "تحديد طريقة الحساب تلقائياً حسب موقعك",
+  "manualCalculationMethod": "طريقة الحساب اليدوية",
+  "detectMethodNow": "اكتشاف الطريقة الآن",
+  "detectingMethod": "جاري اكتشاف الطريقة...",
+  "methodUpdatedAuto": "تم تحديث طريقة الحساب تلقائياً!",
+  "methodUnchanged": "لم يتم تغيير طريقة الحساب",
+  "methodUpdatedForLocation": "تم تحديث طريقة الحساب تلقائياً لموقعك الجديد"
 }

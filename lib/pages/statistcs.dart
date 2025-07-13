@@ -67,16 +67,24 @@ class _StatisticsPageState extends State<StatisticsPage>
     // Calculate total completed azkar
     _completedAzkar = 0;
     for (final dayData in _dailyRaw.values) {
-      _completedAzkar += dayData.values.where((v) => v).length;
+      if (dayData.isNotEmpty) {
+        _completedAzkar += dayData.values.where((v) => v).length;
+      }
     }
     
     // Calculate average completion rate
-    if (_totalDays > 0) {
+    if (_totalDays > 0 && _dailyRatio.isNotEmpty) {
       double totalRatio = 0;
+      int validRatios = 0;
       for (final ratio in _dailyRatio.values) {
-        totalRatio += ratio;
+        if (!ratio.isNaN && !ratio.isInfinite && ratio >= 0) {
+          totalRatio += ratio;
+          validRatios++;
+        }
       }
-      _avgCompletionRate = totalRatio / _totalDays;
+      _avgCompletionRate = validRatios > 0 ? totalRatio / validRatios : 0.0;
+    } else {
+      _avgCompletionRate = 0.0;
     }
     
     // Current streak
@@ -84,9 +92,11 @@ class _StatisticsPageState extends State<StatisticsPage>
     var date = now;
     while (_dailyRaw.containsKey(DateTime(date.year, date.month, date.day))) {
       final dayData = _dailyRaw[DateTime(date.year, date.month, date.day)]!;
-      final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
-      if (!completed) break;
-      streak++;
+      if (dayData.isNotEmpty) {
+        final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
+        if (!completed) break;
+        streak++;
+      }
       date = date.subtract(const Duration(days: 1));
     }
     _currentStreak = streak;
@@ -100,20 +110,25 @@ class _StatisticsPageState extends State<StatisticsPage>
         final prevDate = sortedDates[i - 1];
         final currentDate = sortedDates[i];
         final dayData = _dailyRaw[currentDate]!;
-        final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
         
-        if (completed && currentDate.difference(prevDate).inDays == 1) {
-          currentBest++;
-        } else {
-          currentBest = completed ? 1 : 0;
+        if (dayData.isNotEmpty) {
+          final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
+          
+          if (completed && currentDate.difference(prevDate).inDays == 1) {
+            currentBest++;
+          } else {
+            currentBest = completed ? 1 : 0;
+          }
+          
+          bestStreak = max(bestStreak, currentBest);
         }
-        
-        bestStreak = max(bestStreak, currentBest);
       } else {
         final dayData = _dailyRaw[sortedDates[i]]!;
-        final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
-        currentBest = completed ? 1 : 0;
-        bestStreak = max(bestStreak, currentBest);
+        if (dayData.isNotEmpty) {
+          final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
+          currentBest = completed ? 1 : 0;
+          bestStreak = max(bestStreak, currentBest);
+        }
       }
     }
     _bestStreak = bestStreak;
@@ -123,16 +138,19 @@ class _StatisticsPageState extends State<StatisticsPage>
     for (final entry in _dailyRaw.entries) {
       final date = entry.key;
       final dayData = entry.value;
-      final completionRate = dayData.values.where((v) => v).length / dayData.length;
       
-      // Map completion rate to 1-5 scale
-      int heatValue = 1;
-      if (completionRate >= 0.95) heatValue = 5;
-      else if (completionRate >= 0.75) heatValue = 4;
-      else if (completionRate >= 0.5) heatValue = 3;
-      else if (completionRate >= 0.25) heatValue = 2;
-      
-      _heatMapData[date] = heatValue;
+      if (dayData.isNotEmpty) {
+        final completionRate = dayData.values.where((v) => v).length / dayData.length;
+        
+        // Map completion rate to 1-5 scale
+        int heatValue = 1;
+        if (completionRate >= 0.95) heatValue = 5;
+        else if (completionRate >= 0.75) heatValue = 4;
+        else if (completionRate >= 0.5) heatValue = 3;
+        else if (completionRate >= 0.25) heatValue = 2;
+        
+        _heatMapData[date] = heatValue;
+      }
     }
   }
 
@@ -889,17 +907,29 @@ class _StatisticsPageState extends State<StatisticsPage>
   Widget _chartCard(BuildContext ctx, AppLocalizations loc, Timeframe tf,
       Map<DateTime, double> data,
       {Function(DateTime)? onTap}) {
+    // Check if we have enough data for meaningful visualization
+    if (data.isEmpty) {
+      return _placeholderCard('No data available yet', ctx);
+    }
+    
     if (data.length < 2) {
       final msg = loc.needMoreData(_periodName(tf, loc));
       return _placeholderCard(msg, ctx);
     }
 
+    // Sort entries by date and filter out invalid data
     final entries = data.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+      ..sort((a, b) => a.key.compareTo(b.key))
+      ..removeWhere((e) => e.value.isNaN || e.value.isInfinite);
+    
+    if (entries.isEmpty) {
+      return _placeholderCard('No valid data available', ctx);
+    }
+    
     final first = entries.first.key;
     final spots = [
       for (final e in entries)
-        FlSpot(e.key.difference(first).inDays.toDouble(), e.value * 100)
+        FlSpot(e.key.difference(first).inDays.toDouble(), (e.value * 100).clamp(0.0, 100.0))
     ];
 
     final t = Theme.of(ctx);
@@ -982,12 +1012,12 @@ class _StatisticsPageState extends State<StatisticsPage>
                         final pct = pt.y.toStringAsFixed(1);
                         final date = first.add(Duration(days: pt.x.toInt()));
                         final label = switch (tf) {
-                          Timeframe.daily   => DateFormat('d MMM').format(date),
-                          Timeframe.weekly  => '${loc.weekShort}${DateFormat('w').format(date)}',
-                          Timeframe.monthly => DateFormat('MMM yy').format(date),
+                          Timeframe.daily   => DateFormat('MMM d, yyyy').format(date),
+                          Timeframe.weekly  => 'Week ${DateFormat('w').format(date)}, ${DateFormat('yyyy').format(date)}',
+                          Timeframe.monthly => DateFormat('MMMM yyyy').format(date),
                         };
                         return LineTooltipItem(
-                          '$label\n$pct %',
+                          '$label\nCompletion: $pct%',
                           TextStyle(
                             color: t.colorScheme.onSurface,
                             fontWeight: FontWeight.w600,
@@ -1124,6 +1154,15 @@ class _StatisticsPageState extends State<StatisticsPage>
                 ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              Text(
+                'Complete some azkar to see your progress!',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -1137,21 +1176,24 @@ class _StatisticsPageState extends State<StatisticsPage>
     return SideTitles(
       showTitles: true,
       interval: switch (tf) {
-        Timeframe.daily   => 3,
-        Timeframe.weekly  => 2,
+        Timeframe.daily   => 2,
+        Timeframe.weekly  => 1,
         Timeframe.monthly => 1,
       },
       getTitlesWidget: (v, _) {
         final date = first.add(Duration(days: v.toInt()));
         final lbl = switch (tf) {
-          Timeframe.daily   => DateFormat('d\nMMM').format(date),
-          Timeframe.weekly  =>
-              'W${DateFormat('w').format(date)}\n${DateFormat('yy').format(date)}',
-          Timeframe.monthly => DateFormat('MMM\nyy').format(date),
+          Timeframe.daily   => DateFormat('MMM d').format(date),
+          Timeframe.weekly  => 'Week ${DateFormat('w').format(date)}',
+          Timeframe.monthly => DateFormat('MMM yyyy').format(date),
         };
         return Text(lbl,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11));
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: t.colorScheme.onSurface.withOpacity(0.8),
+            ));
       },
     );
   }
@@ -1162,10 +1204,16 @@ class _StatisticsPageState extends State<StatisticsPage>
   ) {
     final grouped = <DateTime, List<double>>{};
     for (final e in base.entries) {
-      grouped.putIfAbsent(keyFn(e.key), () => []).add(e.value);
+      // Filter out invalid values
+      if (!e.value.isNaN && !e.value.isInfinite && e.value >= 0) {
+        grouped.putIfAbsent(keyFn(e.key), () => []).add(e.value);
+      }
     }
-    return grouped.map(
-        (k, v) => MapEntry(k, v.reduce((a, b) => a + b) / v.length));
+    return grouped.map((k, v) {
+      if (v.isEmpty) return MapEntry(k, 0.0);
+      final avg = v.reduce((a, b) => a + b) / v.length;
+      return MapEntry(k, avg.clamp(0.0, 1.0)); // Ensure percentage is between 0-100%
+    });
   }
 
   DateTime _weekKey(DateTime d) =>

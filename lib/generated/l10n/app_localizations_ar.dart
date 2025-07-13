@@ -530,4 +530,28 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get manualNext => 'الانتقال اليدوي';
+
+  @override
+  String get autoDetectMethod => 'اكتشاف تلقائي للطريقة';
+
+  @override
+  String get autoDetectMethodSubtitle => 'تحديد طريقة الحساب تلقائياً حسب موقعك';
+
+  @override
+  String get manualCalculationMethod => 'طريقة الحساب اليدوية';
+
+  @override
+  String get detectMethodNow => 'اكتشاف الطريقة الآن';
+
+  @override
+  String get detectingMethod => 'جاري اكتشاف الطريقة...';
+
+  @override
+  String get methodUpdatedAuto => 'تم تحديث طريقة الحساب تلقائياً!';
+
+  @override
+  String get methodUnchanged => 'لم يتم تغيير طريقة الحساب';
+
+  @override
+  String get methodUpdatedForLocation => 'تم تحديث طريقة الحساب تلقائياً لموقعك الجديد';
 }

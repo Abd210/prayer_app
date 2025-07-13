@@ -221,5 +221,13 @@
   "adhanVolume": "Adhan Volume",
   "testAdhan": "Test Adhan",
   "autoNext": "Auto Next",
-  "manualNext": "Manual Next"
+  "manualNext": "Manual Next",
+  "autoDetectMethod": "Auto-detect Method",
+  "autoDetectMethodSubtitle": "Automatically detect calculation method based on your location",
+  "manualCalculationMethod": "Manual Calculation Method",
+  "detectMethodNow": "Detect Method Now",
+  "detectingMethod": "Detecting method...",
+  "methodUpdatedAuto": "Calculation method updated automatically!",
+  "methodUnchanged": "Calculation method unchanged",
+  "methodUpdatedForLocation": "Calculation method updated automatically for your new location"
 }
