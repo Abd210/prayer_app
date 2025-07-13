@@ -554,4 +554,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get methodUpdatedForLocation => 'Calculation method updated automatically for your new location';
+
+  @override
+  String get azkarReminders => 'Azkar Reminders';
+
+  @override
+  String get enableAzkarReminders => 'Enable Azkar Reminders';
+
+  @override
+  String get azkarRemindersEnabled => 'Azkar reminders are enabled';
+
+  @override
+  String get azkarRemindersDisabled => 'Azkar reminders are disabled';
+
+  @override
+  String get dhuhrAzkarReminder => 'Dhuhr Azkar Reminder';
+
+  @override
+  String get maghribAzkarReminder => 'Maghrib Azkar Reminder';
+
+  @override
+  String get resetToDefaults => 'Reset to Defaults';
+
+  @override
+  String get testReminder => 'Test Reminder';
+
+  @override
+  String get azkarReminderInfo => 'Azkar Reminder Info';
+
+  @override
+  String get azkarReminderInfoText => '• Dhuhr: Morning azkar reminder before Dhuhr prayer\n• Maghrib: Evening azkar reminder before Maghrib prayer\n• Customizable: Adjust timing as you prefer\n• Daily: Reminders repeat every day';
+
+  @override
+  String get azkarRemindersEnabledMsg => 'Azkar reminders enabled';
+
+  @override
+  String get azkarRemindersDisabledMsg => 'Azkar reminders disabled';
+
+  @override
+  String get resetToDefaultsMsg => 'Reset to default settings';
+
+  @override
+  String get testReminderSent => 'Test reminder sent!';
 }

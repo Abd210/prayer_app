@@ -307,5 +307,19 @@
   "detectingMethod": "جاري اكتشاف الطريقة...",
   "methodUpdatedAuto": "تم تحديث طريقة الحساب تلقائياً!",
   "methodUnchanged": "لم يتم تغيير طريقة الحساب",
-  "methodUpdatedForLocation": "تم تحديث طريقة الحساب تلقائياً لموقعك الجديد"
+  "methodUpdatedForLocation": "تم تحديث طريقة الحساب تلقائياً لموقعك الجديد",
+  "azkarReminders": "تذكير الأذكار",
+  "enableAzkarReminders": "تفعيل تذكير الأذكار",
+  "azkarRemindersEnabled": "تذكير الأذكار مفعل",
+  "azkarRemindersDisabled": "تذكير الأذكار معطل",
+  "dhuhrAzkarReminder": "تذكير أذكار الظهر",
+  "maghribAzkarReminder": "تذكير أذكار المغرب",
+  "resetToDefaults": "إعادة تعيين للافتراضي",
+  "testReminder": "اختبار التذكير",
+  "azkarReminderInfo": "معلومات تذكير الأذكار",
+  "azkarReminderInfoText": "• الظهر: تذكير بأذكار الصباح قبل صلاة الظهر\n• المغرب: تذكير بأذكار المساء قبل صلاة المغرب\n• قابل للتخصيص: اضبط الوقت حسب رغبتك\n• يومياً: تتكرر التذكيرات كل يوم",
+  "azkarRemindersEnabledMsg": "تم تفعيل تذكير الأذكار",
+  "azkarRemindersDisabledMsg": "تم إلغاء تذكير الأذكار",
+  "resetToDefaultsMsg": "تم إعادة التعيين للافتراضي",
+  "testReminderSent": "تم إرسال تذكير تجريبي!"
 }

@@ -105,36 +105,62 @@ class NotificationService {
     final prefs = await SharedPreferences.getInstance();
     final allowAdhanSound = prefs.getBool('allowAdhanSound') ?? true;
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'prayer_channel',
-          'Prayer Notifications',
-          channelDescription: 'Notifications for prayer times',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: allowAdhanSound,
+    // Ensure the scheduled time is in the future
+    if (scheduledDate.isBefore(DateTime.now())) {
+      print('[NotificationService] Skipping notification in the past: $scheduledDate');
+      return;
+    }
+
+    try {
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledDate, tz.local),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'prayer_channel',
+            'Prayer Notifications',
+            channelDescription: 'Notifications for prayer times',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: allowAdhanSound,
+            enableVibration: true,
+            enableLights: true,
+            color: const Color(0xFF16423C), // App primary color
+            largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            // Ensure notification shows even when app is killed
+            ongoing: false,
+            autoCancel: true,
+            // Make notification persistent
+            category: AndroidNotificationCategory.reminder,
+            // High priority for exact timing
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: allowAdhanSound,
+            sound: 'adhan_normal.mp3',
+          ),
         ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exact,
-      matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
-      payload: prayerName,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
+        payload: prayerName,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
 
-    // Set up a listener for actual notification trigger time
-    final now = DateTime.now();
-    final difference = scheduledDate.difference(now).inMilliseconds;
+      print('[NotificationService] Successfully scheduled notification ID: $id for $scheduledDate');
+      
+      // For debugging: log all pending notifications
+      final pendingNotifications = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      print('[NotificationService] Total pending notifications: ${pendingNotifications.length}');
+      for (var notification in pendingNotifications) {
+        print('[NotificationService] Pending: ID ${notification.id} - ${notification.title}');
+      }
 
-    if (difference > 0 && prayerName != null && allowAdhanSound) {
-      // Add a slight delay to ensure notification appears first
-      Future.delayed(Duration(milliseconds: difference), () {
-        // Play adhan when notification time is reached
-        _adhanService.playAdhan(prayerName);
-      });
+    } catch (e) {
+      print('[NotificationService] Error scheduling notification: $e');
     }
   }
 

@@ -1132,6 +1132,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Calculation method updated automatically for your new location'**
   String get methodUpdatedForLocation;
+
+  /// No description provided for @azkarReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar Reminders'**
+  String get azkarReminders;
+
+  /// No description provided for @enableAzkarReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Azkar Reminders'**
+  String get enableAzkarReminders;
+
+  /// No description provided for @azkarRemindersEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders are enabled'**
+  String get azkarRemindersEnabled;
+
+  /// No description provided for @azkarRemindersDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders are disabled'**
+  String get azkarRemindersDisabled;
+
+  /// No description provided for @dhuhrAzkarReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Dhuhr Azkar Reminder'**
+  String get dhuhrAzkarReminder;
+
+  /// No description provided for @maghribAzkarReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Maghrib Azkar Reminder'**
+  String get maghribAzkarReminder;
+
+  /// No description provided for @resetToDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Defaults'**
+  String get resetToDefaults;
+
+  /// No description provided for @testReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Reminder'**
+  String get testReminder;
+
+  /// No description provided for @azkarReminderInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar Reminder Info'**
+  String get azkarReminderInfo;
+
+  /// No description provided for @azkarReminderInfoText.
+  ///
+  /// In en, this message translates to:
+  /// **'• Dhuhr: Morning azkar reminder before Dhuhr prayer\n• Maghrib: Evening azkar reminder before Maghrib prayer\n• Customizable: Adjust timing as you prefer\n• Daily: Reminders repeat every day'**
+  String get azkarReminderInfoText;
+
+  /// No description provided for @azkarRemindersEnabledMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders enabled'**
+  String get azkarRemindersEnabledMsg;
+
+  /// No description provided for @azkarRemindersDisabledMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders disabled'**
+  String get azkarRemindersDisabledMsg;
+
+  /// No description provided for @resetToDefaultsMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default settings'**
+  String get resetToDefaultsMsg;
+
+  /// No description provided for @testReminderSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Test reminder sent!'**
+  String get testReminderSent;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

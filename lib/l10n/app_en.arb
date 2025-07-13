@@ -229,5 +229,19 @@
   "detectingMethod": "Detecting method...",
   "methodUpdatedAuto": "Calculation method updated automatically!",
   "methodUnchanged": "Calculation method unchanged",
-  "methodUpdatedForLocation": "Calculation method updated automatically for your new location"
+  "methodUpdatedForLocation": "Calculation method updated automatically for your new location",
+  "azkarReminders": "Azkar Reminders",
+  "enableAzkarReminders": "Enable Azkar Reminders",
+  "azkarRemindersEnabled": "Azkar reminders are enabled",
+  "azkarRemindersDisabled": "Azkar reminders are disabled",
+  "dhuhrAzkarReminder": "Dhuhr Azkar Reminder",
+  "maghribAzkarReminder": "Maghrib Azkar Reminder",
+  "resetToDefaults": "Reset to Defaults",
+  "testReminder": "Test Reminder",
+  "azkarReminderInfo": "Azkar Reminder Info",
+  "azkarReminderInfoText": "• Dhuhr: Morning azkar reminder before Dhuhr prayer\n• Maghrib: Evening azkar reminder before Maghrib prayer\n• Customizable: Adjust timing as you prefer\n• Daily: Reminders repeat every day",
+  "azkarRemindersEnabledMsg": "Azkar reminders enabled",
+  "azkarRemindersDisabledMsg": "Azkar reminders disabled",
+  "resetToDefaultsMsg": "Reset to default settings",
+  "testReminderSent": "Test reminder sent!"
 }

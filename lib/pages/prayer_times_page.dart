@@ -22,6 +22,7 @@ import 'statistcs.dart';
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
 import '../services/notification_service.dart';
+import '../services/azkar_reminder_service.dart';
 import '../models/prayer_adjustments.dart';
 
 /// ————————————————— Animated wave background —————————————————
@@ -470,6 +471,9 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         );
       }
     }
+    
+    // Schedule Azkar reminders
+    await AzkarReminderService().scheduleAzkarReminders();
   }
 
   // —————————————————— UI

@@ -8,6 +8,7 @@ import 'package:prayer/generated/l10n/app_localizations.dart';
 import 'services/notification_service.dart';
 import 'services/language_provider.dart';
 import 'services/prayer_settings_provider.dart';
+import 'services/azkar_reminder_service.dart';
 import 'theme/theme_notifier.dart';
 import 'pages/splash_screen.dart';   // or MainNavScreen()
 
@@ -20,6 +21,7 @@ void main() async {
   }
 
   await NotificationService().init();
+  await AzkarReminderService().init();
 
   runApp(
     MultiProvider(
