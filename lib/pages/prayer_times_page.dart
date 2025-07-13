@@ -22,6 +22,7 @@ import 'statistcs.dart';
 import '../services/location_service.dart';
 import '../services/prayer_settings_provider.dart';
 import '../services/notification_service.dart';
+import '../services/azkar_reminder_service.dart';
 import '../models/prayer_adjustments.dart';
 
 /// ————————————————— Animated wave background —————————————————
@@ -151,6 +152,26 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
 
     Provider.of<PrayerSettingsProvider>(context, listen: false)
         .addListener(_onPrefsChanged);
+
+    // Auto-detect calculation method on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final prayerSettings = Provider.of<PrayerSettingsProvider>(context, listen: false);
+      final changed = await prayerSettings.autoDetectCalculationMethod();
+      
+      if (changed && mounted) {
+        // Show a subtle notification that method was auto-detected
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.methodUpdatedAuto,
+            ),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
+    });
 
     // build tips
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -282,6 +303,24 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
     _updateNext();
     _scheduleToday();
     _saveWeekly();
+    
+    // Auto-detect calculation method when location changes
+    final prayerSettings = Provider.of<PrayerSettingsProvider>(context, listen: false);
+    final changed = await prayerSettings.autoDetectCalculationMethod();
+    
+    if (changed && mounted) {
+      // Show a subtle notification that method was auto-detected
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.methodUpdatedForLocation,
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
   }
 
   String _chooseCity(List<Placemark> list, Position p) {
@@ -432,6 +471,9 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
         );
       }
     }
+    
+    // Schedule Azkar reminders
+    await AzkarReminderService().scheduleAzkarReminders();
   }
 
   // —————————————————— UI
@@ -458,11 +500,6 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
             ],
           ),
           actions: [
-            if (!kIsWeb) IconButton(
-              icon: const Icon(Icons.notifications_active),
-              tooltip: l10n.testNotification,
-              onPressed: () => NotificationService().sendTestNotification(),
-            ),
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: l10n.reload,

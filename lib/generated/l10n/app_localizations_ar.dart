@@ -530,4 +530,82 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get manualNext => 'الانتقال اليدوي';
+
+  @override
+  String get autoDetectMethod => 'اكتشاف تلقائي للطريقة';
+
+  @override
+  String get autoDetectMethodSubtitle => 'تحديد طريقة الحساب تلقائياً حسب موقعك';
+
+  @override
+  String get manualCalculationMethod => 'طريقة الحساب اليدوية';
+
+  @override
+  String get detectMethodNow => 'اكتشاف الطريقة الآن';
+
+  @override
+  String get detectingMethod => 'جاري اكتشاف الطريقة...';
+
+  @override
+  String get methodUpdatedAuto => 'تم تحديث طريقة الحساب تلقائياً!';
+
+  @override
+  String get methodUnchanged => 'لم يتم تغيير طريقة الحساب';
+
+  @override
+  String get methodUpdatedForLocation => 'تم تحديث طريقة الحساب تلقائياً لموقعك الجديد';
+
+  @override
+  String get azkarReminders => 'تذكير الأذكار';
+
+  @override
+  String get enableAzkarReminders => 'تفعيل تذكير الأذكار';
+
+  @override
+  String get azkarRemindersEnabled => 'تذكير الأذكار مفعل';
+
+  @override
+  String get azkarRemindersDisabled => 'تذكير الأذكار معطل';
+
+  @override
+  String get dhuhrAzkarReminder => 'تذكير أذكار الظهر';
+
+  @override
+  String get maghribAzkarReminder => 'تذكير أذكار المغرب';
+
+  @override
+  String get resetToDefaults => 'إعادة تعيين للافتراضي';
+
+  @override
+  String get testReminder => 'اختبار التذكير';
+
+  @override
+  String get azkarReminderInfo => 'معلومات تذكير الأذكار';
+
+  @override
+  String get azkarReminderInfoText => '• الظهر: تذكير بأذكار الصباح قبل صلاة الظهر\n• المغرب: تذكير بأذكار المساء قبل صلاة المغرب\n• قابل للتخصيص: اضبط الوقت حسب رغبتك\n• يومياً: تتكرر التذكيرات كل يوم';
+
+  @override
+  String get azkarRemindersEnabledMsg => 'تم تفعيل تذكير الأذكار';
+
+  @override
+  String get azkarRemindersDisabledMsg => 'تم إلغاء تذكير الأذكار';
+
+  @override
+  String get resetToDefaultsMsg => 'تم إعادة التعيين للافتراضي';
+
+  @override
+  String get testReminderSent => 'تم إرسال تذكير تجريبي!';
+
+  @override
+  String get testBackgroundNotification => 'اختبار الإشعار في الخلفية';
+
+  @override
+  String get backgroundTestTitle => 'اختبار الإشعار في الخلفية';
+
+  @override
+  String get backgroundTestBody => 'هذا اختبار للإشعار عندما يكون التطبيق مغلقاً. يمكنك إغلاق التطبيق الآن والانتظار 30 ثانية.';
+
+  @override
+  String get backgroundTestScheduled => 'تم جدولة اختبار الإشعار في الخلفية. أغلق التطبيق وانتظر 30 ثانية.';
 }

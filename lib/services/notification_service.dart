@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -105,36 +106,59 @@ class NotificationService {
     final prefs = await SharedPreferences.getInstance();
     final allowAdhanSound = prefs.getBool('allowAdhanSound') ?? true;
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'prayer_channel',
-          'Prayer Notifications',
-          channelDescription: 'Notifications for prayer times',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: allowAdhanSound,
+    // Ensure the scheduled time is in the future
+    if (scheduledDate.isBefore(DateTime.now())) {
+      print('[NotificationService] Skipping notification in the past: $scheduledDate');
+      return;
+    }
+
+    try {
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledDate, tz.local),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'prayer_channel',
+            'Prayer Notifications',
+            channelDescription: 'Notifications for prayer times',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: allowAdhanSound,
+            enableVibration: true,
+            enableLights: true,
+            color: const Color(0xFF16423C), // App primary color
+            largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            // Ensure notification shows even when app is killed
+            ongoing: false,
+            autoCancel: true,
+            // Make notification persistent
+            category: AndroidNotificationCategory.reminder,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: allowAdhanSound,
+            sound: 'adhan_normal.mp3',
+          ),
         ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exact,
-      matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
-      payload: prayerName,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
+        payload: prayerName,
+      );
 
-    // Set up a listener for actual notification trigger time
-    final now = DateTime.now();
-    final difference = scheduledDate.difference(now).inMilliseconds;
+      print('[NotificationService] Successfully scheduled notification ID: $id for $scheduledDate');
+      
+      // For debugging: log all pending notifications
+      final pendingNotifications = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      print('[NotificationService] Total pending notifications: ${pendingNotifications.length}');
+      for (var notification in pendingNotifications) {
+        print('[NotificationService] Pending: ID ${notification.id} - ${notification.title}');
+      }
 
-    if (difference > 0 && prayerName != null && allowAdhanSound) {
-      // Add a slight delay to ensure notification appears first
-      Future.delayed(Duration(milliseconds: difference), () {
-        // Play adhan when notification time is reached
-        _adhanService.playAdhan(prayerName);
-      });
+    } catch (e) {
+      print('[NotificationService] Error scheduling notification: $e');
     }
   }
 
@@ -203,4 +227,60 @@ class NotificationService {
   // Get adhan settings
   bool get isAdhanEnabled => _adhanService.isEnabled;
   double get adhanVolume => _adhanService.volume;
+  
+  /// Reschedule all notifications when app starts (in case app was force-closed)
+  Future<void> rescheduleNotificationsOnStartup() async {
+    if (kIsWeb) return;
+    
+    print('[NotificationService] Rescheduling notifications on startup...');
+    
+    try {
+      // Check if notifications are enabled
+      final prefs = await SharedPreferences.getInstance();
+      final notificationsEnabled = prefs.getBool('enableNotifications') ?? true;
+      
+      if (!notificationsEnabled) {
+        print('[NotificationService] Notifications disabled, skipping reschedule');
+        return;
+      }
+      
+      // Cancel any existing notifications first
+      await cancelAllNotifications();
+      
+      // Get current pending notifications for debugging
+      final pendingNotifications = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      print('[NotificationService] Found ${pendingNotifications.length} existing pending notifications');
+      
+      // The actual rescheduling will be done by the prayer times page
+      // when it calls _scheduleToday() which will then call this service
+      
+    } catch (e) {
+      print('[NotificationService] Error during startup reschedule: $e');
+    }
+  }
+  
+  /// Check if notifications are working properly
+  Future<bool> checkNotificationPermissions() async {
+    if (kIsWeb) return false;
+    
+    try {
+      if (Platform.isAndroid) {
+        final androidPlugin = flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final granted = await androidPlugin?.areNotificationsEnabled() ?? false;
+        print('[NotificationService] Android notifications enabled: $granted');
+        return granted;
+      } else if (Platform.isIOS) {
+        final iosPlugin = flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final granted = await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+        print('[NotificationService] iOS notifications granted: $granted');
+        return granted;
+      }
+    } catch (e) {
+      print('[NotificationService] Error checking permissions: $e');
+    }
+    
+    return false;
+  }
 }

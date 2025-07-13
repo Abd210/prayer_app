@@ -530,4 +530,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manualNext => 'Manual Next';
+
+  @override
+  String get autoDetectMethod => 'Auto-detect Method';
+
+  @override
+  String get autoDetectMethodSubtitle => 'Automatically detect calculation method based on your location';
+
+  @override
+  String get manualCalculationMethod => 'Manual Calculation Method';
+
+  @override
+  String get detectMethodNow => 'Detect Method Now';
+
+  @override
+  String get detectingMethod => 'Detecting method...';
+
+  @override
+  String get methodUpdatedAuto => 'Calculation method updated automatically!';
+
+  @override
+  String get methodUnchanged => 'Calculation method unchanged';
+
+  @override
+  String get methodUpdatedForLocation => 'Calculation method updated automatically for your new location';
+
+  @override
+  String get azkarReminders => 'Azkar Reminders';
+
+  @override
+  String get enableAzkarReminders => 'Enable Azkar Reminders';
+
+  @override
+  String get azkarRemindersEnabled => 'Azkar reminders are enabled';
+
+  @override
+  String get azkarRemindersDisabled => 'Azkar reminders are disabled';
+
+  @override
+  String get dhuhrAzkarReminder => 'Dhuhr Azkar Reminder';
+
+  @override
+  String get maghribAzkarReminder => 'Maghrib Azkar Reminder';
+
+  @override
+  String get resetToDefaults => 'Reset to Defaults';
+
+  @override
+  String get testReminder => 'Test Reminder';
+
+  @override
+  String get azkarReminderInfo => 'Azkar Reminder Info';
+
+  @override
+  String get azkarReminderInfoText => '• Dhuhr: Morning azkar reminder before Dhuhr prayer\n• Maghrib: Evening azkar reminder before Maghrib prayer\n• Customizable: Adjust timing as you prefer\n• Daily: Reminders repeat every day';
+
+  @override
+  String get azkarRemindersEnabledMsg => 'Azkar reminders enabled';
+
+  @override
+  String get azkarRemindersDisabledMsg => 'Azkar reminders disabled';
+
+  @override
+  String get resetToDefaultsMsg => 'Reset to default settings';
+
+  @override
+  String get testReminderSent => 'Test reminder sent!';
+
+  @override
+  String get testBackgroundNotification => 'Test Background Notification';
+
+  @override
+  String get backgroundTestTitle => 'Background Test';
+
+  @override
+  String get backgroundTestBody => 'This is a test notification when the app is closed. You can close the app now and wait 30 seconds.';
+
+  @override
+  String get backgroundTestScheduled => 'Background notification test scheduled. Close the app and wait 30 seconds.';
 }

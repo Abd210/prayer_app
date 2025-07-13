@@ -15,6 +15,7 @@ import 'package:prayer/generated/l10n/app_localizations.dart';
 
 import '../services/notification_service.dart';
 import '../services/location_service.dart';
+import '../services/azkar_reminder_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -41,6 +42,11 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _autoRefreshEnabled = true;
   bool _dataSavingEnabled = false;
   String _cacheDuration = '6h';
+  
+  // For Azkar reminder settings
+  bool _azkarRemindersEnabled = true;
+  int _dhuhrReminderMinutes = 60;
+  int _maghribReminderMinutes = 60;
 
   /// Preview swatches for predefined light‑theme palettes (index 0‑7)
   static final Map<int, List<Color>> _themeSwatchMap = {
@@ -209,30 +215,108 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: l10n.calculationMethodTitle,
                     icon: Icons.calculate_outlined,
                     children: [
+                      // Auto-detection toggle
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.auto_awesome,
+                        title: l10n.autoDetectMethod,
+                        subtitle: l10n.autoDetectMethodSubtitle,
+                        trailing: FutureBuilder<bool>(
+                          future: prayerSettings.isAutoDetectionEnabled(),
+                          builder: (context, snapshot) {
+                            return Switch(
+                              value: snapshot.data ?? true,
+                              onChanged: (value) async {
+                                await prayerSettings.setAutoDetectionEnabled(value);
+                                setState(() {}); // Refresh UI
+                              },
+                              activeColor: theme.colorScheme.primary,
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      // Manual method selection
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: DropdownButtonFormField<CalculationMethod>(
-                          value: prayerSettings.calculationMethod,
-                          decoration: InputDecoration(
-                            labelText: l10n.calculationMethodLabel,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.calculate, size: 20, color: theme.colorScheme.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.manualCalculationMethod,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
-                            filled: true,
-                            fillColor: theme.colorScheme.surface,
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<CalculationMethod>(
+                              value: prayerSettings.calculationMethod,
+                              decoration: InputDecoration(
+                                labelText: l10n.calculationMethodLabel,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: theme.colorScheme.surface,
+                              ),
+                              onChanged: (CalculationMethod? value) {
+                                if (value != null) {
+                                  prayerSettings.updateCalculationMethod(value);
+                                }
+                              },
+                              items: calculationMethods
+                                  .map((m) => DropdownMenuItem(
+                                        value: m,
+                                        child: Text(methodName(m),
+                                            style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+                                      ))
+                                  .toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Auto-detect button
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.my_location),
+                            label: Text(l10n.detectMethodNow),
+                            onPressed: () async {
+                              _showLoadingDialog(context, l10n.detectingMethod);
+                              
+                              final changed = await prayerSettings.autoDetectCalculationMethod();
+                              Navigator.pop(context); // Close loading dialog
+                              
+                              if (changed) {
+                                _showSnackBar(
+                                  context, 
+                                  l10n.methodUpdatedAuto,
+                                  isError: false
+                                );
+                              } else {
+                                _showSnackBar(
+                                  context, 
+                                  l10n.methodUnchanged,
+                                  isError: false
+                                );
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: theme.colorScheme.primary),
+                              foregroundColor: theme.colorScheme.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
                           ),
-                          onChanged: (CalculationMethod? value) {
-                            if (value != null) {
-                              prayerSettings.updateCalculationMethod(value);
-                            }
-                          },
-                          items: calculationMethods
-                              .map((m) => DropdownMenuItem(
-                                    value: m,
-                                    child: Text(methodName(m),
-                                        style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
-                                  ))
-                              .toList(),
                         ),
                       ),
                     ],
@@ -772,6 +856,21 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
                               const SizedBox(height: 8),
+                              // Background Notification Test Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.timer),
+                                  label: Text(selectedLanguage == 'العربية' ? 'اختبار الإشعار في الخلفية' : 'Test Background Notification'),
+                                  onPressed: () => _testBackgroundNotification(context),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.secondary),
+                                    foregroundColor: theme.colorScheme.secondary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
                               // Notification Info
                               Container(
                                 padding: const EdgeInsets.all(12),
@@ -937,6 +1036,236 @@ class _SettingsPageState extends State<SettingsPage> {
                             ],
                         ),
                       ),
+                    ],
+                  ),
+
+                  // Azkar Reminder Settings
+                  _buildSettingsSection(
+                    context,
+                    title: l10n.azkarReminders,
+                    icon: Icons.book_outlined,
+                    children: [
+                      _buildSettingTile(
+                        context,
+                        leading: Icons.notifications_active_outlined,
+                        title: l10n.enableAzkarReminders,
+                        subtitle: _azkarRemindersEnabled 
+                          ? l10n.azkarRemindersEnabled
+                          : l10n.azkarRemindersDisabled,
+                        trailing: Switch(
+                          value: _azkarRemindersEnabled,
+                          onChanged: (v) async {
+                            setState(() => _azkarRemindersEnabled = v);
+                            await AzkarReminderService().setAzkarRemindersEnabled(v);
+                                                          _showSnackBar(
+                                context, 
+                                v ? l10n.azkarRemindersEnabledMsg : l10n.azkarRemindersDisabledMsg,
+                                isError: false
+                              );
+                          },
+                          activeColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                      // Azkar Reminder Settings
+                      if (_azkarRemindersEnabled)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Dhuhr Reminder
+                              Text(
+                                l10n.dhuhrAzkarReminder,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.timer,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: _dhuhrReminderMinutes.toDouble(),
+                                      min: 0,
+                                      max: 180,
+                                      divisions: 18,
+                                      activeColor: theme.colorScheme.primary,
+                                      onChanged: (value) async {
+                                        setState(() {
+                                          _dhuhrReminderMinutes = value.toInt();
+                                        });
+                                        await AzkarReminderService().setDhuhrReminderMinutes(value.toInt());
+                                      },
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      _formatReminderTime(_dhuhrReminderMinutes, selectedLanguage),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // Maghrib Reminder
+                              Text(
+                                l10n.maghribAzkarReminder,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.timer,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      value: _maghribReminderMinutes.toDouble(),
+                                      min: 0,
+                                      max: 180,
+                                      divisions: 18,
+                                      activeColor: theme.colorScheme.primary,
+                                      onChanged: (value) async {
+                                        setState(() {
+                                          _maghribReminderMinutes = value.toInt();
+                                        });
+                                        await AzkarReminderService().setMaghribReminderMinutes(value.toInt());
+                                      },
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      _formatReminderTime(_maghribReminderMinutes, selectedLanguage),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Reset to Defaults Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.restore),
+                                  label: Text(l10n.resetToDefaults),
+                                  onPressed: () async {
+                                    await AzkarReminderService().resetToDefaults();
+                                    setState(() {
+                                      _dhuhrReminderMinutes = 60;
+                                      _maghribReminderMinutes = 60;
+                                    });
+                                    _showSnackBar(
+                                      context,
+                                      l10n.resetToDefaultsMsg,
+                                      isError: false
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.secondary),
+                                    foregroundColor: theme.colorScheme.secondary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Test Reminder Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.notifications_active),
+                                  label: Text(l10n.testReminder),
+                                  onPressed: () async {
+                                    await AzkarReminderService().testReminder();
+                                    _showSnackBar(
+                                      context,
+                                      l10n.testReminderSent,
+                                      isError: false
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.primary),
+                                    foregroundColor: theme.colorScheme.primary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Azkar Reminder Info
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: theme.colorScheme.primary.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          l10n.azkarReminderInfo,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      l10n.azkarReminderInfoText,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
 
@@ -1877,6 +2206,41 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
   
+  Future<void> _testBackgroundNotification(BuildContext context) async {
+    try {
+      final selectedLanguage = await _getSelectedLanguage();
+      
+      // Schedule a notification for 30 seconds from now
+      final testTime = DateTime.now().add(const Duration(seconds: 30));
+      
+      await NotificationService().scheduleNotification(
+        id: 888,
+        title: selectedLanguage == 'العربية' ? 'اختبار الإشعار في الخلفية' : 'Background Test',
+        body: selectedLanguage == 'العربية' 
+          ? 'هذا اختبار للإشعار عندما يكون التطبيق مغلقاً. يمكنك إغلاق التطبيق الآن والانتظار 30 ثانية.'
+          : 'This is a test notification when the app is closed. You can close the app now and wait 30 seconds.',
+        scheduledDate: testTime,
+        repeatDaily: false,
+        prayerName: 'BACKGROUND_TEST',
+      );
+      
+      _showSnackBar(
+        context, 
+        selectedLanguage == 'العربية' 
+          ? 'تم جدولة اختبار الإشعار في الخلفية. أغلق التطبيق وانتظر 30 ثانية.'
+          : 'Background notification test scheduled. Close the app and wait 30 seconds.',
+        isError: false
+      );
+    } catch (e) {
+      _showSnackBar(context, 'Failed to schedule background test: $e', isError: true);
+    }
+  }
+  
+  Future<String> _getSelectedLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('selectedLanguage') ?? 'English';
+  }
+  
   // Daily Hadith methods
   Future<void> _showTimePickerDialog(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -1970,6 +2334,11 @@ class _SettingsPageState extends State<SettingsPage> {
       _autoRefreshEnabled = prefs.getBool('autoRefreshEnabled') ?? true;
       _dataSavingEnabled = prefs.getBool('dataSavingEnabled') ?? false;
       _cacheDuration = prefs.getString('cacheDuration') ?? '6h';
+      
+      // Load Azkar reminder settings
+      _azkarRemindersEnabled = prefs.getBool('azkarRemindersEnabled') ?? true;
+      _dhuhrReminderMinutes = prefs.getInt('dhuhrReminderMinutes') ?? 60;
+      _maghribReminderMinutes = prefs.getInt('maghribReminderMinutes') ?? 60;
     });
   }
   
@@ -2386,6 +2755,28 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       Navigator.pop(context); // Close loading dialog
       _showSnackBar(context, 'Failed to restore settings: $e', isError: true);
+    }
+  }
+  
+  // Helper method to format reminder time for display
+  String _formatReminderTime(int minutes, String language) {
+    if (minutes == 0) {
+      return language == 'العربية' ? 'في وقت الصلاة' : 'At prayer time';
+    }
+    if (minutes == 60) {
+      return language == 'العربية' ? 'ساعة واحدة قبل' : '1 hour before';
+    }
+    if (minutes < 60) {
+      return language == 'العربية' ? '$minutes دقيقة قبل' : '$minutes minutes before';
+    }
+    
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    
+    if (remainingMinutes == 0) {
+      return language == 'العربية' ? '$hours ساعات قبل' : '$hours hours before';
+    } else {
+      return language == 'العربية' ? '$hours ساعات $remainingMinutes دقيقة قبل' : '$hours hours $remainingMinutes minutes before';
     }
   }
 }

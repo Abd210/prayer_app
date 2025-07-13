@@ -267,6 +267,47 @@ class PrayerSettingsProvider extends ChangeNotifier {
       case 'north america':
         return CalculationMethod.north_america;
       case 'europe':
+      case 'united kingdom':
+      case 'germany':
+      case 'france':
+      case 'italy':
+      case 'spain':
+      case 'netherlands':
+      case 'belgium':
+      case 'austria':
+      case 'switzerland':
+      case 'sweden':
+      case 'norway':
+      case 'denmark':
+      case 'finland':
+      case 'poland':
+      case 'czech republic':
+      case 'hungary':
+      case 'romania':
+      case 'bulgaria':
+      case 'croatia':
+      case 'slovenia':
+      case 'slovakia':
+      case 'lithuania':
+      case 'latvia':
+      case 'estonia':
+      case 'ireland':
+      case 'portugal':
+      case 'greece':
+      case 'cyprus':
+      case 'malta':
+      case 'luxembourg':
+      case 'iceland':
+      case 'albania':
+      case 'north macedonia':
+      case 'montenegro':
+      case 'serbia':
+      case 'bosnia and herzegovina':
+      case 'kosovo':
+      case 'moldova':
+      case 'ukraine':
+      case 'belarus':
+      case 'russia':
         return CalculationMethod.muslim_world_league;
       case 'middle east':
         return CalculationMethod.dubai;
@@ -286,6 +327,31 @@ class PrayerSettingsProvider extends ChangeNotifier {
         return CalculationMethod.singapore;
       case 'iran':
         return CalculationMethod.tehran;
+      case 'australia':
+      case 'new zealand':
+      case 'fiji':
+      case 'papua new guinea':
+      case 'new caledonia':
+      case 'vanuatu':
+      case 'solomon islands':
+      case 'tonga':
+      case 'samoa':
+      case 'kiribati':
+      case 'tuvalu':
+      case 'nauru':
+      case 'palau':
+      case 'marshall islands':
+      case 'micronesia':
+      case 'cook islands':
+      case 'niue':
+      case 'tokelau':
+      case 'american samoa':
+      case 'guam':
+      case 'northern mariana islands':
+      case 'french polynesia':
+      case 'wallis and futuna':
+      case 'pitcairn islands':
+        return CalculationMethod.muslim_world_league;
       default:
         return CalculationMethod.moon_sighting_committee;
     }
@@ -309,6 +375,51 @@ class PrayerSettingsProvider extends ChangeNotifier {
         case 'US':
         case 'CA':
           _calculationMethod = CalculationMethod.north_america;
+          return;
+          
+        // Europe - Muslim World League method is commonly used
+        case 'GB': // United Kingdom
+        case 'DE': // Germany
+        case 'FR': // France
+        case 'IT': // Italy
+        case 'ES': // Spain
+        case 'NL': // Netherlands
+        case 'BE': // Belgium
+        case 'AT': // Austria
+        case 'CH': // Switzerland
+        case 'SE': // Sweden
+        case 'NO': // Norway
+        case 'DK': // Denmark
+        case 'FI': // Finland
+        case 'PL': // Poland
+        case 'CZ': // Czech Republic
+        case 'HU': // Hungary
+        case 'RO': // Romania
+        case 'BG': // Bulgaria
+        case 'HR': // Croatia
+        case 'SI': // Slovenia
+        case 'SK': // Slovakia
+        case 'LT': // Lithuania
+        case 'LV': // Latvia
+        case 'EE': // Estonia
+        case 'IE': // Ireland
+        case 'PT': // Portugal
+        case 'GR': // Greece
+        case 'CY': // Cyprus
+        case 'MT': // Malta
+        case 'LU': // Luxembourg
+        case 'IS': // Iceland
+        case 'AL': // Albania
+        case 'MK': // North Macedonia
+        case 'ME': // Montenegro
+        case 'RS': // Serbia
+        case 'BA': // Bosnia and Herzegovina
+        case 'XK': // Kosovo
+        case 'MD': // Moldova
+        case 'UA': // Ukraine
+        case 'BY': // Belarus
+        case 'RU': // Russia (European part)
+          _calculationMethod = CalculationMethod.muslim_world_league;
           return;
           
         // Middle East
@@ -346,6 +457,94 @@ class PrayerSettingsProvider extends ChangeNotifier {
         case 'TR':
           _calculationMethod = CalculationMethod.turkey;
           return;
+          
+        // Africa - Muslim World League method is commonly used
+        case 'MA': // Morocco
+        case 'DZ': // Algeria
+        case 'TN': // Tunisia
+        case 'LY': // Libya
+        case 'SD': // Sudan
+        case 'SO': // Somalia
+        case 'DJ': // Djibouti
+        case 'ET': // Ethiopia
+        case 'ER': // Eritrea
+        case 'KE': // Kenya
+        case 'TZ': // Tanzania
+        case 'UG': // Uganda
+        case 'RW': // Rwanda
+        case 'BI': // Burundi
+        case 'MG': // Madagascar
+        case 'MU': // Mauritius
+        case 'SC': // Seychelles
+        case 'KM': // Comoros
+        case 'YT': // Mayotte
+        case 'RE': // Réunion
+        case 'ZA': // South Africa
+        case 'BW': // Botswana
+        case 'NA': // Namibia
+        case 'ZW': // Zimbabwe
+        case 'ZM': // Zambia
+        case 'MW': // Malawi
+        case 'MZ': // Mozambique
+        case 'SZ': // Eswatini
+        case 'LS': // Lesotho
+        case 'SS': // South Sudan
+        case 'CF': // Central African Republic
+        case 'TD': // Chad
+        case 'CM': // Cameroon
+        case 'GQ': // Equatorial Guinea
+        case 'GA': // Gabon
+        case 'CG': // Republic of the Congo
+        case 'CD': // Democratic Republic of the Congo
+        case 'AO': // Angola
+        case 'ST': // São Tomé and Príncipe
+        case 'GW': // Guinea-Bissau
+        case 'GN': // Guinea
+        case 'SL': // Sierra Leone
+        case 'LR': // Liberia
+        case 'CI': // Ivory Coast
+        case 'GH': // Ghana
+        case 'TG': // Togo
+        case 'BJ': // Benin
+        case 'NG': // Nigeria
+        case 'NE': // Niger
+        case 'BF': // Burkina Faso
+        case 'ML': // Mali
+        case 'SN': // Senegal
+        case 'GM': // Gambia
+        case 'CV': // Cape Verde
+        case 'MR': // Mauritania
+        case 'EH': // Western Sahara
+          _calculationMethod = CalculationMethod.muslim_world_league;
+          return;
+          
+        // Oceania - Muslim World League method is commonly used
+        case 'AU': // Australia
+        case 'NZ': // New Zealand
+        case 'FJ': // Fiji
+        case 'PG': // Papua New Guinea
+        case 'NC': // New Caledonia
+        case 'VU': // Vanuatu
+        case 'SB': // Solomon Islands
+        case 'TO': // Tonga
+        case 'WS': // Samoa
+        case 'KI': // Kiribati
+        case 'TV': // Tuvalu
+        case 'NR': // Nauru
+        case 'PW': // Palau
+        case 'MH': // Marshall Islands
+        case 'FM': // Micronesia
+        case 'CK': // Cook Islands
+        case 'NU': // Niue
+        case 'TK': // Tokelau
+        case 'AS': // American Samoa
+        case 'GU': // Guam
+        case 'MP': // Northern Mariana Islands
+        case 'PF': // French Polynesia
+        case 'WF': // Wallis and Futuna
+        case 'PN': // Pitcairn Islands
+          _calculationMethod = CalculationMethod.muslim_world_league;
+          return;
       }
     }
     
@@ -356,6 +555,64 @@ class PrayerSettingsProvider extends ChangeNotifier {
       // Default to Moon Sighting Committee
       _calculationMethod = CalculationMethod.moon_sighting_committee;
     }
+  }
+
+  /// Automatically detect and set calculation method based on user's current location
+  /// This method can be called periodically or when location changes
+  Future<bool> autoDetectCalculationMethod() async {
+    final prefs = await SharedPreferences.getInstance();
+    final autoDetectionEnabled = prefs.getBool('autoDetectCalculationMethod') ?? true;
+    
+    if (!autoDetectionEnabled) {
+      return false; // User has disabled auto-detection
+    }
+    
+    final oldMethod = _calculationMethod;
+    await _setCalculationMethodByRegion();
+    
+    // Check if the method actually changed
+    if (oldMethod != _calculationMethod) {
+      await _saveToPrefs();
+      notifyListeners();
+      
+      // Save that we auto-detected this method
+      await prefs.setBool('calculationMethodAutoDetected', true);
+      await prefs.setString('lastAutoDetectedMethod', _calculationMethod.name);
+      
+      print('[PrayerSettingsProvider] Auto-detected calculation method: ${_calculationMethod.name}');
+      return true; // Method was changed
+    }
+    
+    return false; // Method didn't change
+  }
+  
+  /// Enable or disable automatic calculation method detection
+  Future<void> setAutoDetectionEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('autoDetectCalculationMethod', enabled);
+    
+    if (enabled) {
+      // If enabling, try to auto-detect now
+      await autoDetectCalculationMethod();
+    }
+  }
+  
+  /// Check if auto-detection is enabled
+  Future<bool> isAutoDetectionEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('autoDetectCalculationMethod') ?? true;
+  }
+  
+  /// Get the last auto-detected method name
+  Future<String?> getLastAutoDetectedMethod() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('lastAutoDetectedMethod');
+  }
+  
+  /// Check if current method was auto-detected
+  Future<bool> wasMethodAutoDetected() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('calculationMethodAutoDetected') ?? false;
   }
 
   void _saveAndNotify() {

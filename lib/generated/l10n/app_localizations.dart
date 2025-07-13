@@ -1084,6 +1084,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manual Next'**
   String get manualNext;
+
+  /// No description provided for @autoDetectMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detect Method'**
+  String get autoDetectMethod;
+
+  /// No description provided for @autoDetectMethodSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically detect calculation method based on your location'**
+  String get autoDetectMethodSubtitle;
+
+  /// No description provided for @manualCalculationMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Calculation Method'**
+  String get manualCalculationMethod;
+
+  /// No description provided for @detectMethodNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect Method Now'**
+  String get detectMethodNow;
+
+  /// No description provided for @detectingMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting method...'**
+  String get detectingMethod;
+
+  /// No description provided for @methodUpdatedAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation method updated automatically!'**
+  String get methodUpdatedAuto;
+
+  /// No description provided for @methodUnchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation method unchanged'**
+  String get methodUnchanged;
+
+  /// No description provided for @methodUpdatedForLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculation method updated automatically for your new location'**
+  String get methodUpdatedForLocation;
+
+  /// No description provided for @azkarReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar Reminders'**
+  String get azkarReminders;
+
+  /// No description provided for @enableAzkarReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Azkar Reminders'**
+  String get enableAzkarReminders;
+
+  /// No description provided for @azkarRemindersEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders are enabled'**
+  String get azkarRemindersEnabled;
+
+  /// No description provided for @azkarRemindersDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders are disabled'**
+  String get azkarRemindersDisabled;
+
+  /// No description provided for @dhuhrAzkarReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Dhuhr Azkar Reminder'**
+  String get dhuhrAzkarReminder;
+
+  /// No description provided for @maghribAzkarReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Maghrib Azkar Reminder'**
+  String get maghribAzkarReminder;
+
+  /// No description provided for @resetToDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Defaults'**
+  String get resetToDefaults;
+
+  /// No description provided for @testReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Reminder'**
+  String get testReminder;
+
+  /// No description provided for @azkarReminderInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar Reminder Info'**
+  String get azkarReminderInfo;
+
+  /// No description provided for @azkarReminderInfoText.
+  ///
+  /// In en, this message translates to:
+  /// **'• Dhuhr: Morning azkar reminder before Dhuhr prayer\n• Maghrib: Evening azkar reminder before Maghrib prayer\n• Customizable: Adjust timing as you prefer\n• Daily: Reminders repeat every day'**
+  String get azkarReminderInfoText;
+
+  /// No description provided for @azkarRemindersEnabledMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders enabled'**
+  String get azkarRemindersEnabledMsg;
+
+  /// No description provided for @azkarRemindersDisabledMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Azkar reminders disabled'**
+  String get azkarRemindersDisabledMsg;
+
+  /// No description provided for @resetToDefaultsMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default settings'**
+  String get resetToDefaultsMsg;
+
+  /// No description provided for @testReminderSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Test reminder sent!'**
+  String get testReminderSent;
+
+  /// No description provided for @testBackgroundNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Background Notification'**
+  String get testBackgroundNotification;
+
+  /// No description provided for @backgroundTestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Test'**
+  String get backgroundTestTitle;
+
+  /// No description provided for @backgroundTestBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a test notification when the app is closed. You can close the app now and wait 30 seconds.'**
+  String get backgroundTestBody;
+
+  /// No description provided for @backgroundTestScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Background notification test scheduled. Close the app and wait 30 seconds.'**
+  String get backgroundTestScheduled;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
