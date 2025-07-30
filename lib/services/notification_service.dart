@@ -5,8 +5,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:adhan/adhan.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'adhan_service.dart';
+import 'azkar_reminder_service.dart';
+import '../models/prayer_adjustments.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -113,18 +117,18 @@ class NotificationService {
     }
 
     try {
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        tz.TZDateTime.from(scheduledDate, tz.local),
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'prayer_channel',
-            'Prayer Notifications',
-            channelDescription: 'Notifications for prayer times',
-            importance: Importance.max,
-            priority: Priority.high,
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(scheduledDate, tz.local),
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'prayer_channel',
+          'Prayer Notifications',
+          channelDescription: 'Notifications for prayer times',
+          importance: Importance.max,
+          priority: Priority.high,
             playSound: allowAdhanSound,
             enableVibration: true,
             enableLights: true,
@@ -144,10 +148,10 @@ class NotificationService {
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
-        payload: prayerName,
-      );
-
+      matchDateTimeComponents: repeatDaily ? DateTimeComponents.time : null,
+      payload: prayerName,
+    );
+    
       print('[NotificationService] Successfully scheduled notification ID: $id for $scheduledDate');
       
       // For debugging: log all pending notifications
@@ -166,16 +170,16 @@ class NotificationService {
   Future<void> sendTestNotification() async {
     // Skip if running on web
     if (kIsWeb) return;
-
+    
     // Read allowAdhanSound from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final allowAdhanSound = prefs.getBool('allowAdhanSound') ?? true;
 
     // Play adhan sound immediately for testing if allowed
     if (allowAdhanSound) {
-      _adhanService.playAdhan('TEST');
+    _adhanService.playAdhan('TEST');
     }
-
+    
     final testTime = DateTime.now().add(const Duration(seconds: 5));
     await scheduleNotification(
       id: 999,
@@ -244,34 +248,267 @@ class NotificationService {
         return;
       }
       
-      // Cancel any existing notifications first
-      await cancelAllNotifications();
+      // Check if we need to reschedule (compare with last reschedule date)
+      final lastRescheduleDate = prefs.getString('lastNotificationRescheduleDate');
+      final today = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD format
       
-      // Get current pending notifications for debugging
-      final pendingNotifications = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
-      print('[NotificationService] Found ${pendingNotifications.length} existing pending notifications');
+      // Always reschedule if:
+      // 1. No last reschedule date (first time)
+      // 2. Last reschedule was not today
+      // 3. No pending notifications exist
+      bool shouldReschedule = lastRescheduleDate != today;
       
-      // The actual rescheduling will be done by the prayer times page
-      // when it calls _scheduleToday() which will then call this service
+      if (!shouldReschedule) {
+        print('[NotificationService] Already rescheduled today, checking if notifications exist...');
+        
+        // Check if we have any pending notifications
+        final pendingNotifications = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+        if (pendingNotifications.isNotEmpty) {
+          print('[NotificationService] Found ${pendingNotifications.length} existing notifications, skipping reschedule');
+          return;
+        } else {
+          print('[NotificationService] No pending notifications found, rescheduling...');
+          shouldReschedule = true;
+        }
+      }
+      
+      if (shouldReschedule) {
+        // Cancel any existing notifications first
+        await cancelAllNotifications();
+        
+        // Actually reschedule notifications by getting current prayer times
+        await _reschedulePrayerNotifications();
+        
+        // Reschedule Azkar reminders
+        await AzkarReminderService().scheduleAzkarReminders();
+        
+        // Save the reschedule date
+        await prefs.setString('lastNotificationRescheduleDate', today);
+        
+        print('[NotificationService] Successfully rescheduled notifications for $today');
+      }
       
     } catch (e) {
       print('[NotificationService] Error during startup reschedule: $e');
     }
   }
   
+  /// Force reschedule notifications (called from settings or when needed)
+  Future<void> forceRescheduleNotifications() async {
+    if (kIsWeb) return;
+    
+    print('[NotificationService] Force rescheduling notifications...');
+    
+    try {
+      // Cancel any existing notifications first
+      await cancelAllNotifications();
+      
+      // Actually reschedule notifications by getting current prayer times
+      await _reschedulePrayerNotifications();
+      
+      // Reschedule Azkar reminders
+      await AzkarReminderService().scheduleAzkarReminders();
+      
+      // Save the reschedule date
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      await prefs.setString('lastNotificationRescheduleDate', today);
+      
+      print('[NotificationService] Successfully force rescheduled notifications');
+      
+    } catch (e) {
+      print('[NotificationService] Error during force reschedule: $e');
+    }
+  }
+  
+  /// Reschedule prayer notifications based on current location and settings
+  Future<void> _reschedulePrayerNotifications() async {
+    try {
+      // Get current location
+      final position = await _getCurrentLocation();
+      if (position == null) {
+        print('[NotificationService] Could not get location for rescheduling');
+        return;
+      }
+      
+      final l10n = await _getLocalizations();
+      final now = DateTime.now();
+      
+      // Schedule notifications for the next 30 days
+      const daysToSchedule = 30;
+      
+      for (int dayOffset = 0; dayOffset < daysToSchedule; dayOffset++) {
+        final targetDate = now.add(Duration(days: dayOffset));
+        
+        // Get prayer times for the target date
+        final prayerTimes = await _getPrayerTimesForDate(position, targetDate);
+        if (prayerTimes == null) {
+          print('[NotificationService] Could not get prayer times for ${targetDate.toIso8601String()}');
+          continue;
+        }
+        
+        const ids = {
+          Prayer.fajr: 0,
+          Prayer.dhuhr: 1,
+          Prayer.asr: 2,
+          Prayer.maghrib: 3,
+          Prayer.isha: 4,
+        };
+
+        final times = {
+          Prayer.fajr: prayerTimes.fajr,
+          Prayer.dhuhr: prayerTimes.dhuhr,
+          Prayer.asr: prayerTimes.asr,
+          Prayer.maghrib: prayerTimes.maghrib,
+          Prayer.isha: prayerTimes.isha,
+        };
+
+        for (final e in times.entries) {
+          final t = e.value?.toLocal();
+          if (t != null && t.isAfter(now)) {
+            final prayerName = e.key.name.toUpperCase();
+            // Use unique ID for each day to avoid conflicts
+            final uniqueId = ids[e.key]! + (dayOffset * 10);
+            
+            await scheduleNotification(
+              id: uniqueId,
+              title: l10n.prayerTimeTitle,
+              body: l10n.prayerNotificationBody(prayerName, 'Current Location'),
+              scheduledDate: t,
+              repeatDaily: false, // Don't repeat since we're scheduling multiple days
+              prayerName: prayerName,
+            );
+            print('[NotificationService] Scheduled ${prayerName} notification for ${t.toString()} (day ${dayOffset + 1})');
+          }
+        }
+      }
+      
+    } catch (e) {
+      print('[NotificationService] Error rescheduling prayer notifications: $e');
+    }
+  }
+  
+  /// Get prayer times for a specific date
+  Future<PrayerTimes?> _getPrayerTimesForDate(Position position, DateTime date) async {
+    try {
+      // Load prayer settings
+      final prefs = await SharedPreferences.getInstance();
+      final calculationMethodStr = prefs.getString('calculationMethod') ?? 'moon_sighting_committee';
+      final madhabStr = prefs.getString('madhab') ?? 'shafi';
+      
+      // Parse calculation method
+      final calculationMethod = CalculationMethod.values.firstWhere(
+        (m) => m.name == calculationMethodStr,
+        orElse: () => CalculationMethod.moon_sighting_committee,
+      );
+      
+      // Parse madhab
+      final madhab = madhabStr == 'hanafi' ? Madhab.hanafi : Madhab.shafi;
+      
+      // Get prayer parameters
+      final params = calculationMethod.getParameters();
+      params.madhab = madhab;
+      
+      // Add adjustments if any
+      final fajrAdjustment = prefs.getInt('fajrAdjustment') ?? 0;
+      final dhuhrAdjustment = prefs.getInt('dhuhrAdjustment') ?? 0;
+      final asrAdjustment = prefs.getInt('asrAdjustment') ?? 0;
+      final maghribAdjustment = prefs.getInt('maghribAdjustment') ?? 0;
+      final ishaAdjustment = prefs.getInt('ishaAdjustment') ?? 0;
+      
+      if (fajrAdjustment != 0 || dhuhrAdjustment != 0 || asrAdjustment != 0 || 
+          maghribAdjustment != 0 || ishaAdjustment != 0) {
+        params.adjustments = PrayerAdjustments(
+          fajr: fajrAdjustment,
+          dhuhr: dhuhrAdjustment,
+          asr: asrAdjustment,
+          maghrib: maghribAdjustment,
+          isha: ishaAdjustment,
+        );
+      }
+      
+      // Calculate prayer times for the specific date
+      final coordinates = Coordinates(position.latitude, position.longitude);
+      final dateComponents = DateComponents.from(date);
+      final prayerTimes = PrayerTimes(coordinates, dateComponents, params);
+      
+      return prayerTimes;
+      
+    } catch (e) {
+      print('[NotificationService] Error getting prayer times for date ${date.toIso8601String()}: $e');
+      return null;
+    }
+  }
+  
+  /// Get current location for rescheduling
+  Future<Position?> _getCurrentLocation() async {
+    try {
+      // Check if we have location permission
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('[NotificationService] Location services are disabled');
+        return null;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          print('[NotificationService] Location permissions are denied');
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        print('[NotificationService] Location permissions are permanently denied');
+        return null;
+      }
+
+      // Try to get last known position first (faster)
+      Position? position = await Geolocator.getLastKnownPosition();
+      if (position != null) {
+        print('[NotificationService] Using last known position');
+        return position;
+      }
+
+      // If no last known position, get current position
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      
+      print('[NotificationService] Got current position');
+      return position;
+    } catch (e) {
+      print('[NotificationService] Error getting location: $e');
+      return null;
+    }
+  }
+  
+  /// Get localizations for notification text
+  Future<dynamic> _getLocalizations() async {
+    try {
+      // For now, return a simple object with the required methods
+      // This is a temporary solution until we can properly handle the localization
+      return _SimpleLocalizations();
+    } catch (e) {
+      print('[NotificationService] Error getting localizations: $e');
+      return _SimpleLocalizations();
+    }
+  }
+
   /// Check if notifications are working properly
   Future<bool> checkNotificationPermissions() async {
     if (kIsWeb) return false;
-    
     try {
       if (Platform.isAndroid) {
-        final androidPlugin = flutterLocalNotificationsPlugin
+        final androidPlugin = this.flutterLocalNotificationsPlugin
             .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
         final granted = await androidPlugin?.areNotificationsEnabled() ?? false;
         print('[NotificationService] Android notifications enabled: $granted');
         return granted;
       } else if (Platform.isIOS) {
-        final iosPlugin = flutterLocalNotificationsPlugin
+        final iosPlugin = this.flutterLocalNotificationsPlugin
             .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
         final granted = await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
         print('[NotificationService] iOS notifications granted: $granted');
@@ -280,7 +517,103 @@ class NotificationService {
     } catch (e) {
       print('[NotificationService] Error checking permissions: $e');
     }
-    
     return false;
   }
+
+  /// Get notification status information
+  Future<Map<String, dynamic>> getNotificationStatus() async {
+    if (kIsWeb) {
+      return {
+        'enabled': false,
+        'pendingCount': 0,
+        'lastRescheduleDate': null,
+        'permissionsGranted': false,
+        'platform': 'web',
+        'daysScheduled': 0,
+      };
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final notificationsEnabled = prefs.getBool('enableNotifications') ?? true;
+      final lastRescheduleDate = prefs.getString('lastNotificationRescheduleDate');
+      final pendingNotifications = await this.flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      final permissionsGranted = await checkNotificationPermissions();
+      
+      // Calculate how many days ahead notifications are scheduled
+      final daysScheduled = await _getDaysScheduled(pendingNotifications);
+      
+      return {
+        'enabled': notificationsEnabled,
+        'pendingCount': pendingNotifications.length,
+        'lastRescheduleDate': lastRescheduleDate,
+        'permissionsGranted': permissionsGranted,
+        'platform': Platform.isAndroid ? 'android' : 'ios',
+        'daysScheduled': daysScheduled,
+        'pendingNotifications': pendingNotifications.map((n) => {
+          'id': n.id,
+          'title': n.title,
+          'body': n.body,
+        }).toList(),
+      };
+    } catch (e) {
+      print('[NotificationService] Error getting notification status: $e');
+      return {
+        'enabled': false,
+        'pendingCount': 0,
+        'lastRescheduleDate': null,
+        'permissionsGranted': false,
+        'platform': 'unknown',
+        'daysScheduled': 0,
+        'error': e.toString(),
+      };
+    }
+  }
+  
+  /// Calculate how many days ahead notifications are scheduled
+  Future<int> _getDaysScheduled(List<PendingNotificationRequest> pendingNotifications) async {
+    if (pendingNotifications.isEmpty) return 0;
+    
+    try {
+      // Get the latest scheduled notification time
+      DateTime? latestTime;
+      
+      for (final notification in pendingNotifications) {
+        // For now, we'll estimate based on notification IDs
+        // Prayer notifications: IDs 0-4 for today, 10-14 for tomorrow, etc.
+        // Azkar reminders: IDs 1001-1002 for today, 1011-1012 for tomorrow, etc.
+        
+        if (notification.id < 1000) {
+          // Prayer notification
+          final dayOffset = (notification.id / 10).floor();
+          final estimatedTime = DateTime.now().add(Duration(days: dayOffset));
+          if (latestTime == null || estimatedTime.isAfter(latestTime)) {
+            latestTime = estimatedTime;
+          }
+        } else if (notification.id >= 1000 && notification.id < 2000) {
+          // Azkar reminder
+          final dayOffset = ((notification.id - 1000) / 10).floor();
+          final estimatedTime = DateTime.now().add(Duration(days: dayOffset));
+          if (latestTime == null || estimatedTime.isAfter(latestTime)) {
+            latestTime = estimatedTime;
+          }
+        }
+      }
+      
+      if (latestTime != null) {
+        final daysDiff = latestTime.difference(DateTime.now()).inDays;
+        return daysDiff > 0 ? daysDiff : 0;
+      }
+      
+      return 0;
+    } catch (e) {
+      print('[NotificationService] Error calculating days scheduled: $e');
+      return 0;
+    }
+  }
+}
+
+/// Simple localizations class for notification text
+class _SimpleLocalizations {
+  String get prayerTimeTitle => 'Prayer Time';
+  String prayerNotificationBody(String prayerName, String location) => 'It is time for $prayerName prayer in $location';
 }

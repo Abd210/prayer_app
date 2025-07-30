@@ -257,27 +257,27 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<CalculationMethod>(
-                              value: prayerSettings.calculationMethod,
-                              decoration: InputDecoration(
-                                labelText: l10n.calculationMethodLabel,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: theme.colorScheme.surface,
-                              ),
-                              onChanged: (CalculationMethod? value) {
-                                if (value != null) {
-                                  prayerSettings.updateCalculationMethod(value);
-                                }
-                              },
-                              items: calculationMethods
-                                  .map((m) => DropdownMenuItem(
-                                        value: m,
-                                        child: Text(methodName(m),
-                                            style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
-                                      ))
-                                  .toList(),
+                          value: prayerSettings.calculationMethod,
+                          decoration: InputDecoration(
+                            labelText: l10n.calculationMethodLabel,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: theme.colorScheme.surface,
+                          ),
+                          onChanged: (CalculationMethod? value) {
+                            if (value != null) {
+                              prayerSettings.updateCalculationMethod(value);
+                            }
+                          },
+                          items: calculationMethods
+                              .map((m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(methodName(m),
+                                        style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+                                  ))
+                              .toList(),
                             ),
                           ],
                         ),
@@ -871,55 +871,137 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              // Notification Info
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: theme.colorScheme.primary.withOpacity(0.3),
+                              // Force Reschedule Notifications Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.refresh),
+                                  label: Text(selectedLanguage == 'العربية' ? 'إعادة جدولة الإشعارات' : 'Reschedule Notifications'),
+                                  onPressed: () => _forceRescheduleNotifications(context),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: theme.colorScheme.tertiary),
+                                    foregroundColor: theme.colorScheme.tertiary,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
                                   ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                              ),
+                              const SizedBox(height: 8),
+                              // Notification Status
+                              FutureBuilder<Map<String, dynamic>>(
+                                future: NotificationService().getNotificationStatus(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            selectedLanguage == 'العربية' ? 'جاري تحميل حالة الإشعارات...' : 'Loading notification status...',
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  
+                                  if (snapshot.hasError) {
+                                    return Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.errorContainer,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: theme.colorScheme.error.withOpacity(0.3)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.error_outline, size: 16, color: theme.colorScheme.error),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              selectedLanguage == 'العربية' ? 'خطأ في تحميل حالة الإشعارات' : 'Error loading notification status',
+                                              style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  
+                                  final status = snapshot.data ?? {};
+                                  final pendingCount = status['pendingCount'] ?? 0;
+                                  final permissionsGranted = status['permissionsGranted'] ?? false;
+                                  final lastRescheduleDate = status['lastRescheduleDate'];
+                                  final daysScheduled = status['daysScheduled'] ?? 0;
+                                  
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: theme.colorScheme.primary.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Icon(
-                                          Icons.info_outline,
-                                          size: 16,
-                                          color: theme.colorScheme.primary,
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.info_outline,
+                                              size: 16,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              selectedLanguage == 'العربية' ? 'حالة الإشعارات' : 'Notification Status',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(height: 8),
                                         Text(
-                                          selectedLanguage == 'العربية' ? 'معلومات الإشعارات' : 'Notification Info',
+                                          selectedLanguage == 'العربية'
+                                            ? '• الإشعارات المعلقة: $pendingCount\n'
+                                              '• الأذونات: ${permissionsGranted ? 'ممنوحة' : 'غير ممنوحة'}\n'
+                                              '• آخر إعادة جدولة: ${lastRescheduleDate ?? 'غير محدد'}\n'
+                                              '• الأيام المجدولة: $daysScheduled يوم\n'
+                                              '• وقت التبكير: احصل على إشعار قبل وقت الصلاة\n'
+                                              '• الصوت: تشغيل صوت الأذان مع الإشعارات\n'
+                                              '• طويل الأمد: الإشعارات مجدولة لعدة أيام\n'
+                                              '• اختبار: جرب نظام الإشعارات'
+                                            : '• Pending notifications: $pendingCount\n'
+                                              '• Permissions: ${permissionsGranted ? 'Granted' : 'Not granted'}\n'
+                                              '• Last reschedule: ${lastRescheduleDate ?? 'Not set'}\n'
+                                              '• Days scheduled: $daysScheduled days\n'
+                                              '• Advance time: Get notified before prayer time\n'
+                                              '• Sound: Play adhan sound with notifications\n'
+                                              '• Long-term: Notifications scheduled for multiple days\n'
+                                              '• Test: Try the notification system',
                                           style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: theme.colorScheme.primary,
+                                            fontSize: 11,
+                                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                            height: 1.4,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      selectedLanguage == 'العربية'
-                                        ? '• وقت التبكير: احصل على إشعار قبل وقت الصلاة\n'
-                                          '• الصوت: تشغيل صوت الأذان مع الإشعارات\n'
-                                          '• يومياً: تتكرر الإشعارات كل يوم\n'
-                                          '• اختبار: جرب نظام الإشعارات'
-                                        : '• Advance time: Get notified before prayer time\n'
-                                          '• Sound: Play adhan sound with notifications\n'
-                                          '• Daily: Notifications repeat every day\n'
-                                          '• Test: Try the notification system',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  );
+                                },
                               ),
                             ],
                         ),
@@ -1264,8 +1346,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
                             ],
-                          ),
                         ),
+                      ),
                     ],
                   ),
 
@@ -2233,6 +2315,55 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     } catch (e) {
       _showSnackBar(context, 'Failed to schedule background test: $e', isError: true);
+    }
+  }
+  
+  Future<void> _forceRescheduleNotifications(BuildContext context) async {
+    try {
+      final selectedLanguage = await _getSelectedLanguage();
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Text(selectedLanguage == 'العربية' ? 'إعادة جدولة الإشعارات...' : 'Rescheduling notifications...'),
+            ],
+          ),
+        ),
+      );
+      
+      // Force reschedule notifications
+      await NotificationService().forceRescheduleNotifications();
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      
+      _showSnackBar(
+        context, 
+        selectedLanguage == 'العربية' 
+          ? 'تم إعادة جدولة جميع الإشعارات بنجاح'
+          : 'All notifications have been successfully rescheduled',
+        isError: false
+      );
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      _showSnackBar(
+        context, 
+        selectedLanguage == 'العربية' 
+          ? 'فشل في إعادة جدولة الإشعارات: $e'
+          : 'Failed to reschedule notifications: $e', 
+        isError: true
+      );
     }
   }
   

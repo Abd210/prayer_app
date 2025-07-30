@@ -68,7 +68,7 @@ class _StatisticsPageState extends State<StatisticsPage>
     _completedAzkar = 0;
     for (final dayData in _dailyRaw.values) {
       if (dayData.isNotEmpty) {
-        _completedAzkar += dayData.values.where((v) => v).length;
+      _completedAzkar += dayData.values.where((v) => v).length;
       }
     }
     
@@ -78,9 +78,9 @@ class _StatisticsPageState extends State<StatisticsPage>
       int validRatios = 0;
       for (final ratio in _dailyRatio.values) {
         if (!ratio.isNaN && !ratio.isInfinite && ratio >= 0) {
-          totalRatio += ratio;
+        totalRatio += ratio;
           validRatios++;
-        }
+      }
       }
       _avgCompletionRate = validRatios > 0 ? totalRatio / validRatios : 0.0;
     } else {
@@ -93,9 +93,9 @@ class _StatisticsPageState extends State<StatisticsPage>
     while (_dailyRaw.containsKey(DateTime(date.year, date.month, date.day))) {
       final dayData = _dailyRaw[DateTime(date.year, date.month, date.day)]!;
       if (dayData.isNotEmpty) {
-        final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
-        if (!completed) break;
-        streak++;
+      final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
+      if (!completed) break;
+      streak++;
       }
       date = date.subtract(const Duration(days: 1));
     }
@@ -112,22 +112,22 @@ class _StatisticsPageState extends State<StatisticsPage>
         final dayData = _dailyRaw[currentDate]!;
         
         if (dayData.isNotEmpty) {
-          final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
-          
-          if (completed && currentDate.difference(prevDate).inDays == 1) {
-            currentBest++;
-          } else {
-            currentBest = completed ? 1 : 0;
-          }
-          
-          bestStreak = max(bestStreak, currentBest);
+        final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
+        
+        if (completed && currentDate.difference(prevDate).inDays == 1) {
+          currentBest++;
+        } else {
+          currentBest = completed ? 1 : 0;
+        }
+        
+        bestStreak = max(bestStreak, currentBest);
         }
       } else {
         final dayData = _dailyRaw[sortedDates[i]]!;
         if (dayData.isNotEmpty) {
-          final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
-          currentBest = completed ? 1 : 0;
-          bestStreak = max(bestStreak, currentBest);
+        final completed = dayData.values.where((v) => v).length / dayData.length >= 0.5;
+        currentBest = completed ? 1 : 0;
+        bestStreak = max(bestStreak, currentBest);
         }
       }
     }
@@ -140,16 +140,16 @@ class _StatisticsPageState extends State<StatisticsPage>
       final dayData = entry.value;
       
       if (dayData.isNotEmpty) {
-        final completionRate = dayData.values.where((v) => v).length / dayData.length;
-        
-        // Map completion rate to 1-5 scale
-        int heatValue = 1;
-        if (completionRate >= 0.95) heatValue = 5;
-        else if (completionRate >= 0.75) heatValue = 4;
-        else if (completionRate >= 0.5) heatValue = 3;
-        else if (completionRate >= 0.25) heatValue = 2;
-        
-        _heatMapData[date] = heatValue;
+      final completionRate = dayData.values.where((v) => v).length / dayData.length;
+      
+      // Map completion rate to 1-5 scale
+      int heatValue = 1;
+      if (completionRate >= 0.95) heatValue = 5;
+      else if (completionRate >= 0.75) heatValue = 4;
+      else if (completionRate >= 0.5) heatValue = 3;
+      else if (completionRate >= 0.25) heatValue = 2;
+      
+      _heatMapData[date] = heatValue;
       }
     }
   }
@@ -938,17 +938,17 @@ class _StatisticsPageState extends State<StatisticsPage>
     final todayX = today.difference(first).inDays.toDouble();
     final hasToday = entries.any((e) =>
       e.key.year == today.year && e.key.month == today.month && e.key.day == today.day);
-
+    
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 4,
       shadowColor: t.colorScheme.primary.withOpacity(0.18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Gradient header
-          Container(
-            decoration: BoxDecoration(
+                Container(
+                  decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
                   t.colorScheme.primary.withOpacity(0.85),
@@ -958,12 +958,12 @@ class _StatisticsPageState extends State<StatisticsPage>
                 end: Alignment.bottomRight,
               ),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
+                  ),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             child: Row(
               children: [
                 Icon(
-                  Icons.show_chart_rounded,
+                    Icons.show_chart_rounded,
                   color: Colors.white,
                   size: 22,
                 ),
@@ -1110,9 +1110,9 @@ class _StatisticsPageState extends State<StatisticsPage>
                 duration: const Duration(milliseconds: 900),
                 curve: Curves.easeInOutCubic,
               ),
+              ),
             ),
-          ),
-        ],
+          ],
       ),
     );
   }
@@ -1206,8 +1206,8 @@ class _StatisticsPageState extends State<StatisticsPage>
     for (final e in base.entries) {
       // Filter out invalid values
       if (!e.value.isNaN && !e.value.isInfinite && e.value >= 0) {
-        grouped.putIfAbsent(keyFn(e.key), () => []).add(e.value);
-      }
+      grouped.putIfAbsent(keyFn(e.key), () => []).add(e.value);
+    }
     }
     return grouped.map((k, v) {
       if (v.isEmpty) return MapEntry(k, 0.0);

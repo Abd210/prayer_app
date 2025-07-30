@@ -91,7 +91,7 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
       _subhanallahCount = 0;
       _alhamdulillahCount = 0;
       _allahuAkbarCount = 0;
-    });
+      });
   }
 
   /* ────────── UI ────────── */
@@ -112,8 +112,8 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
           // Foreground content
           SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
+          child: Column(
+            children: [
                 const SizedBox(height: 20),
                 _buildMainCounter(theme),
                 const SizedBox(height: 40),
@@ -147,10 +147,10 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
   Widget _buildMainCounter(ThemeData theme) {
     return GestureDetector(
       onTap: _incrementMain,
-      child: Container(
-        width: double.infinity,
+                child: Container(
+                  width: double.infinity,
         padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
+                  decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
               theme.colorScheme.primary.withOpacity(0.1),
@@ -163,8 +163,8 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
           border: Border.all(
             color: theme.colorScheme.primary.withOpacity(0.2),
             width: 2,
-          ),
-        ),
+                ),
+              ),
         child: Column(
           children: [
             Text(
@@ -185,7 +185,7 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
                 border: Border.all(
                   color: theme.colorScheme.primary.withOpacity(0.3),
                   width: 3,
-                ),
+                  ),
               ),
               child: Center(
                 child: Text(
@@ -196,17 +196,17 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
                     color: theme.colorScheme.primary,
                   ),
                 ),
+                ),
               ),
-            ),
             const SizedBox(height: 16),
-            Text(
+              Text(
               'Tap to count',
               style: TextStyle(
                 fontSize: 14,
                 color: theme.colorScheme.onSurface.withOpacity(0.5),
               ),
-            ),
-          ],
+              ),
+            ],
         ),
       ),
     );
@@ -310,7 +310,7 @@ class _TasbihAdvancedPageState extends State<TasbihAdvancedPage> {
             const SizedBox(height: 12),
             Text(
               title,
-              textAlign: TextAlign.center,
+                textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -441,7 +441,7 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
 
   void _incrementCount(int index) {
     setState(() {
-      currentCounts[index]++;
+        currentCounts[index]++;
     });
     _persistProgress();
 
@@ -449,11 +449,11 @@ class _AzkarReadingPageState extends State<AzkarReadingPage> {
     final count = currentCounts[index];
     if (_autoAdvance) {
       if (count == required) {
-        if (index < widget.items.length - 1) {
-          _pageController.nextPage(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut);
-        } else {
+      if (index < widget.items.length - 1) {
+        _pageController.nextPage(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
+      } else {
           _confettiCtrl.play();
           AzkarStorage.markFinished(widget.title);
           AzkarStorage.clearProgress(widget.title);

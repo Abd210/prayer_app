@@ -1,0 +1,2 @@
+C:/Users/Abd/Desktop/sdm/prayer_app/android/app/.cxx/Debug/4of2o4u3/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Abd/Desktop/sdm/prayer_app/android/app/.cxx/Debug/4of2o4u3/armeabi-v7a/CMakeFiles/rebuild_cache.dir

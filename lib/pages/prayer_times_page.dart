@@ -219,7 +219,28 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
   // —————————————————— lifecycle
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _initLocation();
+    if (state == AppLifecycleState.resumed) {
+      _initLocation();
+      // Also check and reschedule notifications when app is resumed
+      _checkAndRescheduleNotifications();
+    }
+  }
+  
+  /// Check and reschedule notifications if needed when app is resumed
+  Future<void> _checkAndRescheduleNotifications() async {
+    try {
+      // Check if we have any pending notifications
+      final pendingNotifications = await NotificationService().flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      
+      if (pendingNotifications.isEmpty) {
+        print('[PrayerTimesPage] No pending notifications found, rescheduling...');
+        await NotificationService().forceRescheduleNotifications();
+      } else {
+        print('[PrayerTimesPage] Found ${pendingNotifications.length} pending notifications');
+      }
+    } catch (e) {
+      print('[PrayerTimesPage] Error checking notifications on resume: $e');
+    }
   }
 
   void _onPrefsChanged() {
@@ -496,7 +517,7 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
               FadeTransition(
                 opacity: _cityFadeAnimation,
                 child: Text(_city, style: TextStyle(fontSize: isSmallScreen ? 16 : 18)),
-              ),
+            ),
             ],
           ),
           actions: [
@@ -627,18 +648,18 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
       tween: Tween<double>(begin: 0, end: _progress),
       duration: const Duration(milliseconds: 800),
       builder: (context, value, child) {
-        return Container(
-          margin: EdgeInsets.all(isSmallScreen ? 8 : 16),
+    return Container(
+      margin: EdgeInsets.all(isSmallScreen ? 8 : 16),
           padding: EdgeInsets.all(isSmallScreen ? 12 : 18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
                 Theme.of(ctx).colorScheme.primary.withOpacity(.95),
                 Theme.of(ctx).colorScheme.secondary.withOpacity(.85),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
             borderRadius: BorderRadius.circular(isSmallScreen ? 14 : 20),
             boxShadow: [
               BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4)),
@@ -661,20 +682,20 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
                   ),
                   Icon(prayerIcon, color: Colors.white, size: isSmallScreen ? 32 : 40),
                 ],
-              ),
+      ),
               const SizedBox(width: 18),
               Expanded(
-                child: Column(
+      child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.nextPrayerLabel(_nextName),
-                      style: TextStyle(
+        children: [
+          Text(
+            l10n.nextPrayerLabel(_nextName),
+            style: TextStyle(
                         fontSize: isSmallScreen ? 17 : 20,
-                        fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.bold, 
                         color: Colors.white,
                         letterSpacing: 0.5,
-                      ),
+          ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -688,10 +709,10 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
                       ),
                     ),
                   ],
-                ),
-              ),
-            ],
+            ),
           ),
+        ],
+      ),
         );
       },
     );
@@ -750,13 +771,13 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      dateStr, 
-                      style: TextStyle(
-                        fontSize: bodyFontSize, 
-                        fontWeight: FontWeight.bold
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                dateStr, 
+                style: TextStyle(
+                  fontSize: bodyFontSize, 
+                  fontWeight: FontWeight.bold
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
                   ),
                   if (!isToday)
                     Padding(
@@ -826,18 +847,18 @@ class PrayerTimesPageState extends State<PrayerTimesPage>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(l10n.tipOfDay, 
-                                style: TextStyle(
-                                  fontSize: bodyFontSize, 
+              Text(l10n.tipOfDay, 
+                style: TextStyle(
+                  fontSize: bodyFontSize, 
                                   fontWeight: FontWeight.w600,
                                   color: Theme.of(context).colorScheme.primary,
-                                )
-                              ),
+                )
+              ),
                               SizedBox(height: 3),
                               Text(
                                 _currentTip,
                                 textAlign: TextAlign.left,
-                                style: TextStyle(
+                  style: TextStyle(
                                   fontSize: isSmallScreen ? 11 : 13, 
                                   fontStyle: FontStyle.italic,
                                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),

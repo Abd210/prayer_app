@@ -117,7 +117,7 @@ class AzkarReminderService {
     print('[AzkarReminderService] Reset to default settings');
   }
 
-  /// Schedule Azkar reminders for today
+  /// Schedule Azkar reminders for multiple days ahead
   Future<void> scheduleAzkarReminders() async {
     if (kIsWeb || !_azkarRemindersEnabled) return;
     
@@ -132,43 +132,53 @@ class AzkarReminderService {
         return;
       }
       
-      // Get prayer times for today
-      final prayerTimes = await _getPrayerTimes(position);
-      if (prayerTimes == null) {
-        print('[AzkarReminderService] Could not get prayer times');
-        return;
-      }
-      
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
       
-      // Schedule Dhuhr reminder
-      if (prayerTimes.dhuhr != null) {
-        final dhuhrReminderTime = prayerTimes.dhuhr!.subtract(Duration(minutes: _dhuhrReminderMinutes));
-        if (dhuhrReminderTime.isAfter(now)) {
-          await _scheduleReminder(
-            id: 1001, // Unique ID for Dhuhr reminder
-            title: 'Azkar Reminder',
-            body: 'Time to recite morning azkar before Dhuhr prayer',
-            scheduledTime: dhuhrReminderTime,
-            prayerName: 'dhuhr_azkar',
-          );
-          print('[AzkarReminderService] Scheduled Dhuhr azkar reminder for ${dhuhrReminderTime.toString()}');
+      // Schedule reminders for the next 30 days
+      const daysToSchedule = 30;
+      
+      for (int dayOffset = 0; dayOffset < daysToSchedule; dayOffset++) {
+        final targetDate = now.add(Duration(days: dayOffset));
+        
+        // Get prayer times for the target date
+        final prayerTimes = await _getPrayerTimesForDate(position, targetDate);
+        if (prayerTimes == null) {
+          print('[AzkarReminderService] Could not get prayer times for ${targetDate.toIso8601String()}');
+          continue;
         }
-      }
-      
-      // Schedule Maghrib reminder
-      if (prayerTimes.maghrib != null) {
-        final maghribReminderTime = prayerTimes.maghrib!.subtract(Duration(minutes: _maghribReminderMinutes));
-        if (maghribReminderTime.isAfter(now)) {
-          await _scheduleReminder(
-            id: 1002, // Unique ID for Maghrib reminder
-            title: 'Azkar Reminder',
-            body: 'Time to recite evening azkar before Maghrib prayer',
-            scheduledTime: maghribReminderTime,
-            prayerName: 'maghrib_azkar',
-          );
-          print('[AzkarReminderService] Scheduled Maghrib azkar reminder for ${maghribReminderTime.toString()}');
+        
+        // Schedule Dhuhr reminder
+        if (prayerTimes.dhuhr != null) {
+          final dhuhrReminderTime = prayerTimes.dhuhr!.subtract(Duration(minutes: _dhuhrReminderMinutes));
+          if (dhuhrReminderTime.isAfter(now)) {
+            // Use unique ID for each day to avoid conflicts
+            final uniqueId = 1001 + (dayOffset * 10);
+            await _scheduleReminder(
+              id: uniqueId,
+              title: 'Azkar Reminder',
+              body: 'Time to recite morning azkar before Dhuhr prayer',
+              scheduledTime: dhuhrReminderTime,
+              prayerName: 'dhuhr_azkar',
+            );
+            print('[AzkarReminderService] Scheduled Dhuhr azkar reminder for ${dhuhrReminderTime.toString()} (day ${dayOffset + 1})');
+          }
+        }
+        
+        // Schedule Maghrib reminder
+        if (prayerTimes.maghrib != null) {
+          final maghribReminderTime = prayerTimes.maghrib!.subtract(Duration(minutes: _maghribReminderMinutes));
+          if (maghribReminderTime.isAfter(now)) {
+            // Use unique ID for each day to avoid conflicts
+            final uniqueId = 1002 + (dayOffset * 10);
+            await _scheduleReminder(
+              id: uniqueId,
+              title: 'Azkar Reminder',
+              body: 'Time to recite evening azkar before Maghrib prayer',
+              scheduledTime: maghribReminderTime,
+              prayerName: 'maghrib_azkar',
+            );
+            print('[AzkarReminderService] Scheduled Maghrib azkar reminder for ${maghribReminderTime.toString()} (day ${dayOffset + 1})');
+          }
         }
       }
       
@@ -176,9 +186,9 @@ class AzkarReminderService {
       print('[AzkarReminderService] Error scheduling reminders: $e');
     }
   }
-
-  /// Get prayer times for current location
-  Future<PrayerTimes?> _getPrayerTimes(Position position) async {
+  
+  /// Get prayer times for a specific date
+  Future<PrayerTimes?> _getPrayerTimesForDate(Position position, DateTime date) async {
     try {
       // Load prayer settings
       final prefs = await SharedPreferences.getInstance();
@@ -216,15 +226,15 @@ class AzkarReminderService {
         );
       }
       
-      // Calculate prayer times
+      // Calculate prayer times for the specific date
       final coordinates = Coordinates(position.latitude, position.longitude);
-      final date = DateComponents.from(DateTime.now());
-      final prayerTimes = PrayerTimes(coordinates, date, params);
+      final dateComponents = DateComponents.from(date);
+      final prayerTimes = PrayerTimes(coordinates, dateComponents, params);
       
       return prayerTimes;
       
     } catch (e) {
-      print('[AzkarReminderService] Error getting prayer times: $e');
+      print('[AzkarReminderService] Error getting prayer times for date ${date.toIso8601String()}: $e');
       return null;
     }
   }
@@ -244,7 +254,7 @@ class AzkarReminderService {
       title: title,
       body: body,
       scheduledDate: scheduledTime,
-      repeatDaily: true,
+      repeatDaily: false, // Don't repeat since we're scheduling multiple days
       prayerName: prayerName,
     );
   }
@@ -254,11 +264,20 @@ class AzkarReminderService {
     if (kIsWeb) return;
     
     try {
-      // Cancel specific reminder IDs
-      await _notificationService.flutterLocalNotificationsPlugin.cancel(1001); // Dhuhr reminder
-      await _notificationService.flutterLocalNotificationsPlugin.cancel(1002); // Maghrib reminder
+      // Cancel all reminder IDs for the next 30 days
+      const daysToSchedule = 30;
       
-      print('[AzkarReminderService] Cancelled all Azkar reminders');
+      for (int dayOffset = 0; dayOffset < daysToSchedule; dayOffset++) {
+        // Cancel Dhuhr reminder for this day
+        final dhuhrId = 1001 + (dayOffset * 10);
+        await _notificationService.flutterLocalNotificationsPlugin.cancel(dhuhrId);
+        
+        // Cancel Maghrib reminder for this day
+        final maghribId = 1002 + (dayOffset * 10);
+        await _notificationService.flutterLocalNotificationsPlugin.cancel(maghribId);
+      }
+      
+      print('[AzkarReminderService] Cancelled all Azkar reminders for 30 days');
     } catch (e) {
       print('[AzkarReminderService] Error cancelling reminders: $e');
     }
